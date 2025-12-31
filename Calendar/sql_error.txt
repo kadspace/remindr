@@ -1,0 +1,58 @@
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :compose-multiplatform:sample
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/build.gradle.kts:19:5: This declaration needs opt-in. Its usage should be marked with '@org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl' or '@OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)'
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/build.gradle.kts:20:9: Unresolved reference: outputModuleName
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/build.gradle.kts:38:9: Unresolved reference: outputModuleName
+w: Missing `androidTarget()` in Kotlin Multiplatform Project
+Missing `androidTarget()` Kotlin target in multiplatform project 'sample (:compose-multiplatform:sample)'.
+The Android Gradle plugin was applied without creating a corresponding `androidTarget()` Kotlin Target
+plugins {
+    id("com.android.application")
+    kotlin("multiplatform")
+}
+
+kotlin {
+    androidTarget() // <-- please register this Android target
+}
+Solution:
+Please register the Android target.
+
+SQLDelight Gradle plugin was applied but there are no databases set up.
+
+[Incubating] Problems report is available at: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file 'C:\Users\lycomp\Documents\_code\remindr_3\Calendar\compose-multiplatform\sample\build.gradle.kts' line: 19
+
+* What went wrong:
+Script compilation errors:
+
+  Line 19:     wasmJs {
+               ^ This declaration needs opt-in. Its usage should be marked with '@org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl' or '@OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)'
+
+  Line 20:         outputModuleName = "composeApp"
+                   ^ Unresolved reference: outputModuleName
+
+  Line 38:         outputModuleName = "composeJsApp"
+                   ^ Unresolved reference: outputModuleName
+
+3 errors
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 6s
+3 actionable tasks: 3 up-to-date

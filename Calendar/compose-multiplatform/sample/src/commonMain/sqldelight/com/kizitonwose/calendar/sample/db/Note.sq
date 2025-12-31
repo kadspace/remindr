@@ -1,0 +1,19 @@
+CREATE TABLE Note (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    text TEXT NOT NULL,
+    color INTEGER NOT NULL,
+    time TEXT NOT NULL
+);
+
+selectAll:
+SELECT * FROM Note;
+
+selectByDate:
+SELECT * FROM Note WHERE date = ?;
+
+insert:
+INSERT INTO Note (date, text, color, time) VALUES (?, ?, ?, ?);
+
+delete:
+DELETE FROM Note WHERE id = ?;

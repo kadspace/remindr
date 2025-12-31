@@ -1,0 +1,32 @@
+# Large binary dependencies
+android-sdk/
+commandlinetools.zip
+
+# Logs
+*.log
+*.tmp
+
+# User specific
+y.txt
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+.gradle/
+build/
+local.properties
+
+# Kotlin / Gradle
+.kotlin/
+kotlin-js-store/
+.DS_Store
+
+# iOS / Swift
+Pods/
+DerivedData/
+.build/
+*.xcworkspace
+xcuserdata/
+fastlane/

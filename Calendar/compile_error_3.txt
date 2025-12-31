@@ -1,0 +1,98 @@
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+> Task :compose-multiplatform:library:kmpPartiallyResolvedDependenciesChecker
+> Task :compose-multiplatform:library:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :compose-multiplatform:library:convertXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:library:copyNonXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:library:prepareComposeResourcesTaskForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:library:generateResourceAccessorsForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:library:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :compose-multiplatform:library:copyNonXmlValueResourcesForCommonMain NO-SOURCE
+> Task :compose-multiplatform:library:prepareComposeResourcesTaskForCommonMain NO-SOURCE
+> Task :compose-multiplatform:library:generateResourceAccessorsForCommonMain NO-SOURCE
+> Task :compose-multiplatform:library:convertXmlValueResourcesForJvmMain NO-SOURCE
+> Task :compose-multiplatform:library:copyNonXmlValueResourcesForJvmMain NO-SOURCE
+> Task :compose-multiplatform:library:prepareComposeResourcesTaskForJvmMain NO-SOURCE
+> Task :compose-multiplatform:library:generateResourceAccessorsForJvmMain NO-SOURCE
+> Task :compose-multiplatform:library:generateActualResourceCollectorsForAndroidMain UP-TO-DATE
+> Task :compose-multiplatform:library:generateComposeResClass UP-TO-DATE
+> Task :compose-multiplatform:library:preBuild UP-TO-DATE
+> Task :compose-multiplatform:library:preDebugBuild UP-TO-DATE
+> Task :compose-multiplatform:library:generateDebugResources UP-TO-DATE
+> Task :compose-multiplatform:library:packageDebugResources UP-TO-DATE
+> Task :compose-multiplatform:library:processDebugNavigationResources UP-TO-DATE
+> Task :compose-multiplatform:library:parseDebugLocalResources UP-TO-DATE
+> Task :compose-multiplatform:library:generateDebugRFile UP-TO-DATE
+> Task :compose-multiplatform:library:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
+> Task :compose-multiplatform:library:convertXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:library:copyNonXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:library:prepareComposeResourcesTaskForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:library:generateResourceAccessorsForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:library:compileDebugKotlinAndroid UP-TO-DATE
+> Task :compose-multiplatform:library:javaPreCompileDebug UP-TO-DATE
+> Task :compose-multiplatform:library:compileDebugJavaWithJavac NO-SOURCE
+> Task :compose-multiplatform:library:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :compose-multiplatform:library:compileDebugLibraryResources UP-TO-DATE
+> Task :compose-multiplatform:library:writeDebugAarMetadata UP-TO-DATE
+> Task :compose-multiplatform:library:extractDeepLinksDebug UP-TO-DATE
+> Task :compose-multiplatform:library:processDebugManifest UP-TO-DATE
+> Task :compose-multiplatform:sample:kmpPartiallyResolvedDependenciesChecker
+> Task :compose-multiplatform:sample:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :compose-multiplatform:sample:convertXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:sample:copyNonXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:sample:prepareComposeResourcesTaskForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:sample:generateResourceAccessorsForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:sample:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :compose-multiplatform:sample:copyNonXmlValueResourcesForCommonMain NO-SOURCE
+> Task :compose-multiplatform:sample:prepareComposeResourcesTaskForCommonMain NO-SOURCE
+> Task :compose-multiplatform:sample:generateResourceAccessorsForCommonMain NO-SOURCE
+> Task :compose-multiplatform:sample:convertXmlValueResourcesForJvmMain NO-SOURCE
+> Task :compose-multiplatform:sample:copyNonXmlValueResourcesForJvmMain NO-SOURCE
+> Task :compose-multiplatform:sample:prepareComposeResourcesTaskForJvmMain NO-SOURCE
+> Task :compose-multiplatform:sample:generateResourceAccessorsForJvmMain NO-SOURCE
+> Task :compose-multiplatform:sample:generateActualResourceCollectorsForAndroidMain UP-TO-DATE
+> Task :compose-multiplatform:sample:generateComposeResClass UP-TO-DATE
+> Task :compose-multiplatform:sample:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
+> Task :compose-multiplatform:sample:convertXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:copyNonXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:prepareComposeResourcesTaskForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:generateResourceAccessorsForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:preBuild UP-TO-DATE
+> Task :compose-multiplatform:sample:preDebugBuild UP-TO-DATE
+> Task :compose-multiplatform:sample:checkDebugAarMetadata UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugNavigationResources UP-TO-DATE
+> Task :compose-multiplatform:sample:compileDebugNavigationResources UP-TO-DATE
+> Task :compose-multiplatform:sample:mapDebugSourceSetPaths UP-TO-DATE
+> Task :compose-multiplatform:sample:generateDebugResources UP-TO-DATE
+> Task :compose-multiplatform:sample:mergeDebugResources UP-TO-DATE
+> Task :compose-multiplatform:sample:packageDebugResources UP-TO-DATE
+> Task :compose-multiplatform:sample:parseDebugLocalResources UP-TO-DATE
+> Task :compose-multiplatform:sample:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :compose-multiplatform:sample:extractDeepLinksDebug UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugMainManifest UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugManifest UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugManifestForPackage UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugResources UP-TO-DATE
+
+> Task :compose-multiplatform:sample:compileDebugKotlinAndroid
+w: Argument "-Xsuppress-warning" is deprecated. Use "-Xwarning-level=NOTHING_TO_INLINE:disabled" instead
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example10Page.kt:274:33 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example11Page.kt:174:33 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example1Page.kt:133:29 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example2Page.kt:153:29 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example3Page.kt:91:8 'typealias Clock = Clock' is deprecated. This type is deprecated in favor of `kotlin.time.Clock`.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example3Page.kt:501:29 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example4Page.kt:140:33 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example5Page.kt:71:9 'fun dayOfMonth(padding: Padding = ...): Unit' is deprecated. Use 'day' instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example7Page.kt:79:9 'fun dayOfMonth(padding: Padding = ...): Unit' is deprecated. Use 'day' instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example8Page.kt:290:29 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/Example9Page.kt:289:28 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+
+BUILD SUCCESSFUL in 17s
+38 actionable tasks: 3 executed, 35 up-to-date

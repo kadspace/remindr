@@ -1,0 +1,275 @@
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+> Task :compose-multiplatform:library:kmpPartiallyResolvedDependenciesChecker
+> Task :compose-multiplatform:library:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :compose-multiplatform:library:convertXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:library:copyNonXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:library:prepareComposeResourcesTaskForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:library:generateResourceAccessorsForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:library:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :compose-multiplatform:library:copyNonXmlValueResourcesForCommonMain NO-SOURCE
+> Task :compose-multiplatform:library:prepareComposeResourcesTaskForCommonMain NO-SOURCE
+> Task :compose-multiplatform:library:generateResourceAccessorsForCommonMain NO-SOURCE
+> Task :compose-multiplatform:library:convertXmlValueResourcesForJvmMain NO-SOURCE
+> Task :compose-multiplatform:library:copyNonXmlValueResourcesForJvmMain NO-SOURCE
+> Task :compose-multiplatform:library:prepareComposeResourcesTaskForJvmMain NO-SOURCE
+> Task :compose-multiplatform:library:generateResourceAccessorsForJvmMain NO-SOURCE
+> Task :compose-multiplatform:library:generateActualResourceCollectorsForAndroidMain UP-TO-DATE
+> Task :compose-multiplatform:library:generateComposeResClass UP-TO-DATE
+> Task :compose-multiplatform:library:preBuild UP-TO-DATE
+> Task :compose-multiplatform:library:preDebugBuild UP-TO-DATE
+> Task :compose-multiplatform:library:generateDebugResources UP-TO-DATE
+> Task :compose-multiplatform:library:packageDebugResources UP-TO-DATE
+> Task :compose-multiplatform:library:processDebugNavigationResources UP-TO-DATE
+> Task :compose-multiplatform:library:parseDebugLocalResources UP-TO-DATE
+> Task :compose-multiplatform:library:generateDebugRFile UP-TO-DATE
+> Task :compose-multiplatform:library:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
+> Task :compose-multiplatform:library:convertXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:library:copyNonXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:library:prepareComposeResourcesTaskForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:library:generateResourceAccessorsForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:library:compileDebugKotlinAndroid UP-TO-DATE
+> Task :compose-multiplatform:library:javaPreCompileDebug UP-TO-DATE
+> Task :compose-multiplatform:library:compileDebugJavaWithJavac NO-SOURCE
+> Task :compose-multiplatform:library:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :compose-multiplatform:library:compileDebugLibraryResources UP-TO-DATE
+> Task :compose-multiplatform:library:writeDebugAarMetadata UP-TO-DATE
+> Task :compose-multiplatform:library:extractDeepLinksDebug UP-TO-DATE
+> Task :compose-multiplatform:library:processDebugManifest UP-TO-DATE
+
+> Task :compose-multiplatform:sample:kmpPartiallyResolvedDependenciesChecker
+e: KMP Dependencies Resolution Failure
+Source set 'commonMain' couldn't resolve dependencies for all target platforms
+Couldn't resolve dependency 'app.cash.sqldelight:runtime' in 'commonMain' for all target platforms.
+The dependency should target platforms: [android, android, desktop, iosArm64, iosSimulatorArm64, iosX64, js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Couldn't resolve dependency 'app.cash.sqldelight:coroutines-extensions' in 'commonMain' for all target platforms.
+The dependency should target platforms: [android, android, desktop, iosArm64, iosSimulatorArm64, iosX64, js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Run the build with '--info' for more details.
+Solution:
+Make sure you are using a dependency that targets all required platforms or move your dependency and relevant code to a more applicable source set: https://kotl.in/57b2-source-set-dependencies
+
+e: KMP Dependencies Resolution Failure
+Source set 'nonJvmMain' couldn't resolve dependencies for all target platforms
+Couldn't resolve dependency 'app.cash.sqldelight:runtime' in 'nonJvmMain' for all target platforms.
+The dependency should target platforms: [iosArm64, iosSimulatorArm64, iosX64, js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Couldn't resolve dependency 'app.cash.sqldelight:coroutines-extensions' in 'nonJvmMain' for all target platforms.
+The dependency should target platforms: [iosArm64, iosSimulatorArm64, iosX64, js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Run the build with '--info' for more details.
+Solution:
+Make sure you are using a dependency that targets all required platforms or move your dependency and relevant code to a more applicable source set: https://kotl.in/57b2-source-set-dependencies
+
+e: KMP Dependencies Resolution Failure
+Source set 'webMain' couldn't resolve dependencies for all target platforms
+Couldn't resolve dependency 'app.cash.sqldelight:runtime' in 'webMain' for all target platforms.
+The dependency should target platforms: [js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Couldn't resolve dependency 'app.cash.sqldelight:coroutines-extensions' in 'webMain' for all target platforms.
+The dependency should target platforms: [js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Run the build with '--info' for more details.
+Solution:
+Make sure you are using a dependency that targets all required platforms or move your dependency and relevant code to a more applicable source set: https://kotl.in/57b2-source-set-dependencies
+
+
+> Task :compose-multiplatform:sample:checkKotlinGradlePluginConfigurationErrors
+e: KMP Dependencies Resolution Failure
+Source set 'commonMain' couldn't resolve dependencies for all target platforms
+Couldn't resolve dependency 'app.cash.sqldelight:runtime' in 'commonMain' for all target platforms.
+The dependency should target platforms: [android, android, desktop, iosArm64, iosSimulatorArm64, iosX64, js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Couldn't resolve dependency 'app.cash.sqldelight:coroutines-extensions' in 'commonMain' for all target platforms.
+The dependency should target platforms: [android, android, desktop, iosArm64, iosSimulatorArm64, iosX64, js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Run the build with '--info' for more details.
+Solution:
+Make sure you are using a dependency that targets all required platforms or move your dependency and relevant code to a more applicable source set: https://kotl.in/57b2-source-set-dependencies
+
+e: KMP Dependencies Resolution Failure
+Source set 'nonJvmMain' couldn't resolve dependencies for all target platforms
+Couldn't resolve dependency 'app.cash.sqldelight:runtime' in 'nonJvmMain' for all target platforms.
+The dependency should target platforms: [iosArm64, iosSimulatorArm64, iosX64, js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Couldn't resolve dependency 'app.cash.sqldelight:coroutines-extensions' in 'nonJvmMain' for all target platforms.
+The dependency should target platforms: [iosArm64, iosSimulatorArm64, iosX64, js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Run the build with '--info' for more details.
+Solution:
+Make sure you are using a dependency that targets all required platforms or move your dependency and relevant code to a more applicable source set: https://kotl.in/57b2-source-set-dependencies
+
+e: KMP Dependencies Resolution Failure
+Source set 'webMain' couldn't resolve dependencies for all target platforms
+Couldn't resolve dependency 'app.cash.sqldelight:runtime' in 'webMain' for all target platforms.
+The dependency should target platforms: [js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Couldn't resolve dependency 'app.cash.sqldelight:coroutines-extensions' in 'webMain' for all target platforms.
+The dependency should target platforms: [js, wasmJs]
+Unresolved platforms: [wasmJs]
+
+
+Run the build with '--info' for more details.
+Solution:
+Make sure you are using a dependency that targets all required platforms or move your dependency and relevant code to a more applicable source set: https://kotl.in/57b2-source-set-dependencies
+
+
+> Task :compose-multiplatform:sample:convertXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:sample:copyNonXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:sample:prepareComposeResourcesTaskForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:sample:generateResourceAccessorsForAndroidMain NO-SOURCE
+> Task :compose-multiplatform:sample:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :compose-multiplatform:sample:copyNonXmlValueResourcesForCommonMain NO-SOURCE
+> Task :compose-multiplatform:sample:prepareComposeResourcesTaskForCommonMain NO-SOURCE
+> Task :compose-multiplatform:sample:generateResourceAccessorsForCommonMain NO-SOURCE
+> Task :compose-multiplatform:sample:convertXmlValueResourcesForJvmMain NO-SOURCE
+> Task :compose-multiplatform:sample:copyNonXmlValueResourcesForJvmMain NO-SOURCE
+> Task :compose-multiplatform:sample:prepareComposeResourcesTaskForJvmMain NO-SOURCE
+> Task :compose-multiplatform:sample:generateResourceAccessorsForJvmMain NO-SOURCE
+> Task :compose-multiplatform:sample:generateActualResourceCollectorsForAndroidMain UP-TO-DATE
+> Task :compose-multiplatform:sample:generateCommonMainRemindrDatabaseInterface UP-TO-DATE
+> Task :compose-multiplatform:sample:generateComposeResClass UP-TO-DATE
+> Task :compose-multiplatform:sample:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
+> Task :compose-multiplatform:sample:convertXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:copyNonXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:prepareComposeResourcesTaskForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:generateResourceAccessorsForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:preBuild UP-TO-DATE
+> Task :compose-multiplatform:sample:preDebugBuild UP-TO-DATE
+> Task :compose-multiplatform:sample:checkDebugAarMetadata UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugNavigationResources UP-TO-DATE
+> Task :compose-multiplatform:sample:compileDebugNavigationResources UP-TO-DATE
+> Task :compose-multiplatform:sample:mapDebugSourceSetPaths UP-TO-DATE
+> Task :compose-multiplatform:sample:generateDebugResources UP-TO-DATE
+> Task :compose-multiplatform:sample:mergeDebugResources UP-TO-DATE
+> Task :compose-multiplatform:sample:packageDebugResources UP-TO-DATE
+> Task :compose-multiplatform:sample:parseDebugLocalResources UP-TO-DATE
+> Task :compose-multiplatform:sample:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :compose-multiplatform:sample:extractDeepLinksDebug UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugMainManifest UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugManifest UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugManifestForPackage UP-TO-DATE
+> Task :compose-multiplatform:sample:processDebugResources UP-TO-DATE
+
+> Task :compose-multiplatform:sample:compileDebugKotlinAndroid
+w: Argument "-Xsuppress-warning" is deprecated. Use "-Xwarning-level=NOTHING_TO_INLINE:disabled" instead
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/androidMain/kotlin/com/kizitonwose/calendar/compose/multiplatform/MainActivity.kt:24:8 No value passed for parameter 'driverFactory'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/App.kt:7:24 Unresolved reference 'DatabaseDriverFactory'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:118:32 Unresolved reference 'DatabaseDriverFactory'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:120:20 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:120:31 Unresolved reference 'RemindrDatabase'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:120:61 Unresolved reference 'createDriver'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:121:20 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:121:31 Unresolved reference 'NoteDbHelper'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:130:26 Unresolved reference 'getAllNotes'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:130:65 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:135:31 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:136:9 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:138:31 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:138:63 Unresolved reference 'it'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:196:40 Unresolved reference 'it'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:198:25 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:217:51 Unresolved reference 'value'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:217:60 Cannot infer type for value parameter 'note'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:218:21 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:218:21 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
+fun LazyItemScope.NoteInformation(note: CalendarNote, onDelete: () -> Unit): Unit
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:218:62 'fun <T> MutableList<T>.remove(index: Int): T' is deprecated. Use removeAt(index) instead.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:301:46 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:302:39 Unresolved reference 'add'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:579:16 No value passed for parameter 'driverFactory'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:24:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:25:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:26:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:26:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:31:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:32:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:33:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:33:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:41:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:42:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:43:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:43:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:48:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:49:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:50:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:50:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:58:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:59:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:60:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:60:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:68:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:69:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:70:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:70:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:78:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:79:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:80:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:80:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:85:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:86:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:87:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:87:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:95:17 Argument type mismatch: actual type is 'LocalDateTime', but 'Long' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:96:17 Argument type mismatch: actual type is 'String', but 'LocalDateTime' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:97:17 Argument type mismatch: actual type is 'Color', but 'String' was expected.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarNote.kt:97:17 No value passed for parameter 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:16:34 Unresolved reference 'CalendarNote'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:18:13 Return type mismatch: expected 'List<ERROR CLASS: Symbol not found for CalendarNote>', actual 'List<uninferred R (of fun <T, R> Iterable<T>.map)>'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:18:21 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:19:17 Unresolved reference 'CalendarNote'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:28:22 Unresolved reference 'CalendarNote'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:30:25 Unresolved reference 'time'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:31:25 Unresolved reference 'text'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:32:26 Unresolved reference 'color'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:33:25 Unresolved reference 'time'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/NoteDbHelper.kt:37:22 Unresolved reference 'CalendarNote'.
+
+> Task :compose-multiplatform:sample:compileDebugKotlinAndroid FAILED
+
+[Incubating] Problems report is available at: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compose-multiplatform:sample:compileDebugKotlinAndroid'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 13s
+40 actionable tasks: 4 executed, 36 up-to-date
