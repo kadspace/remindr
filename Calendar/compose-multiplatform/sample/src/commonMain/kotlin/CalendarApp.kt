@@ -98,12 +98,12 @@ import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.core.minusMonths
 import com.kizitonwose.calendar.core.plusMonths
 import com.kizitonwose.calendar.core.now
-import com.kizitonwose.calendar.core.plusMonths
 import kotlinx.coroutines.launch
-import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.atTime
-import kotlinx.datetime.LocalTime
-import kotlinx.datetime.YearMonth
+import kotlinx.coroutines.flow.filter
+import kotlinx.datetime.*
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.serialization.json.Json
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 
@@ -250,11 +250,12 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory) {
             }
 
 
-            val geminiService = remember { GeminiService() }
+
+            val aiService = remember { AIService() }
             var showMagicDialog by remember { mutableStateOf(false) }
             var isThinking by remember { mutableStateOf(false) }
             var magicError by remember { mutableStateOf<String?>(null) }
-
+            
             if (showMagicDialog) {
                 MagicDialog(
                     onDismiss = { showMagicDialog = false },
@@ -266,16 +267,35 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory) {
                         magicError = null
                         coroutineScope.launch {
                             try {
-                                val result = geminiService.parseNote(magicText, key)
-                                // If successful (no exception thrown)
+                                val result = aiService.parseNote(magicText, key)
+                                println("Magic Add Result: $result") // LOGGING
+                                
+                                // If successful
                                 if (result != null) {
-                                    text = result.text 
-                                    selectedTime = LocalTime(result.hour, result.minute) 
                                     val colorIdx = result.colorIndex.coerceIn(0, 7)
-                                    selectedColor = noteColors[colorIdx] 
                                     
-                                    isSheetOpen = true 
+                                    // Calculate target day (Default to start of current month as fallback for now)
+                                    val nowYM = YearMonth.now() 
+                                    val topDay = kotlinx.datetime.LocalDate(nowYM.year, nowYM.month, 1)
+                                    val targetDate = topDay.plus(DatePeriod(days = result.dayOffset))
+                                    
+                                    // Construct Note
+                                    val time = targetDate.atTime(result.hour, result.minute)
+                                    val note = CalendarNote(
+                                        time = time,
+                                        text = result.text,
+                                        color = noteColors[colorIdx]
+                                    )
+                                    
+                                    // Save to DB
+                                    dbHelper.insert(note)
+
+                                    // Move selection to that day so user sees the new dot
+                                    selection = CalendarDay(targetDate, DayPosition.MonthDate)
+
+                                    // Close Dialog, Do NOT open sheet
                                     showMagicDialog = false
+                                    magicError = null // Clear any error
                                 }
                             } catch (e: Exception) {
                                 magicError = "Error: ${e.message ?: e.toString()}"
@@ -637,7 +657,7 @@ private fun LazyItemScope.NoteInformation(note: CalendarNote, onDelete: () -> Un
                 .weight(1f)
                 .fillMaxHeight()
                 .padding(8.dp),
-            contentAlignment = Alignment.CenterStart
+                contentAlignment = Alignment.CenterStart
         ) {
             Text(
                 text = note.text,
@@ -696,7 +716,7 @@ fun MagicDialog(
                     placeholder = { Text("e.g. Lunch with John at 1pm") },
                     enabled = !isLoading
                 )
-                Text("Gemini API Key:", color = Color.Black, fontSize = 12.sp)
+                Text("Groq API Key:", color = Color.Black, fontSize = 12.sp)
                  OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
@@ -707,7 +727,7 @@ fun MagicDialog(
                 if (error != null) {
                     Text(error, color = Color.Red, fontSize = 12.sp)
                 } else {
-                    Text("Get a free key from Google AI Studio", fontSize = 10.sp, color = Color.Gray)
+                    Text("Get a free key from console.groq.com", fontSize = 10.sp, color = Color.Gray)
                 }
                 if (isLoading) {
                     androidx.compose.material3.CircularProgressIndicator(

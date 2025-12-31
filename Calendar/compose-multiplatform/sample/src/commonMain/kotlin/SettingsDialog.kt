@@ -29,7 +29,7 @@ fun SettingsDialog(
         title = { Text("Settings", color = Color.Black) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Gemini API Key:", color = Color.Black)
+                Text("Groq API Key:", color = Color.Black)
                 OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
@@ -43,7 +43,7 @@ fun SettingsDialog(
                          cursorColor = Color.Black
                     )
                 )
-                Text("Get a free key from Google AI Studio", fontSize = 10.sp, color = Color.Gray)
+                Text("Get a free key from console.groq.com", fontSize = 10.sp, color = Color.Gray)
             }
         },
         confirmButton = {
