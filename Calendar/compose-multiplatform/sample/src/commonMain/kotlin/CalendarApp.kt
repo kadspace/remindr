@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
@@ -224,102 +225,165 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                 firstDayOfWeek = daysOfWeek.first(),
                 outDateStyle = OutDateStyle.EndOfGrid,
             )
+            
+            val visibleMonth = rememberFirstCompletelyVisibleMonth(state)
+            LaunchedEffect(visibleMonth) {
+                selection = null
+            }
 
             Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(pageBackgroundColor)
-                        .applyScaffoldHorizontalPaddingsLocal()
-                        .applyScaffoldBottomPaddingLocal(),
-                ) {
-                    val visibleMonth = rememberFirstCompletelyVisibleMonth(state)
-                    LaunchedEffect(visibleMonth) {
-                        selection = null
-                    }
-
-                    CompositionLocalProvider(LocalContentColor provides Color.White) {
-                        SimpleCalendarTitle(
-                            modifier = Modifier
-                                .background(toolbarColor)
-                                .padding(horizontal = 8.dp, vertical = 12.dp)
-                                .applyScaffoldTopPaddingLocal(),
-                            currentMonth = visibleMonth.yearMonth,
-                            goToPrevious = {
-                                coroutineScope.launch {
-                                    state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.previous)
-                                }
-                            },
-                            goToNext = {
-                                coroutineScope.launch {
-                                    state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.next)
-                                }
-                            },
-                            onSettingsClick = { screen = Screen.Settings }
-                        )
-                        HorizontalCalendar(
-                            modifier = Modifier.wrapContentWidth(),
-                            state = state,
-                            dayContent = { day ->
-                                val notesForDay = if (day.position == DayPosition.MonthDate) {
-                                    notes.filter { it.time.date == day.date }
-                                } else {
-                                    emptyList()
-                                }
-                                Day(
-                                    day = day,
-                                    isSelected = selection == day,
-                                    isHighlighted = day.date == recentlyAddedDate, // Pass highlight state
-                                    notes = notesForDay,
-                                ) { clicked ->
-                                    selection = clicked
-                                }
-                            },
-                            monthHeader = {
-                                MonthHeader(
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    daysOfWeek = daysOfWeek,
-                                )
-                            },
-                        )
-                        HorizontalDivider(color = pageBackgroundColor)
-                        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                            items(items = notesInSelectedDate.value) { note ->
-                                NoteInformation(note, onDelete = { dbHelper.deleteById(note.id) })
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    containerColor = pageBackgroundColor,
+                    topBar = {
+                        CompositionLocalProvider(LocalContentColor provides Color.White) {
+                            SimpleCalendarTitle(
+                                modifier = Modifier
+                                    .background(toolbarColor)
+                                    .padding(horizontal = 8.dp, vertical = 12.dp)
+                                    .applyScaffoldTopPaddingLocal(),
+                                currentMonth = visibleMonth.yearMonth,
+                                goToPrevious = {
+                                    coroutineScope.launch {
+                                        state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.previous)
+                                    }
+                                },
+                                goToNext = {
+                                    coroutineScope.launch {
+                                        state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.next)
+                                    }
+                                },
+                                onSettingsClick = { screen = Screen.Settings }
+                            )
+                        }
+                    },
+                    bottomBar = {
+                        if (sheetMode == 0 || sheetMode == 1) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(pageBackgroundColor)
+                                    .navigationBarsPadding()
+                                    .imePadding() // Key for keyboard
+                            ) {
+                                MagicInputContent(
+                                   error = magicError,
+                                   isLoading = isThinking,
+                                   onSwitchToManual = { sheetMode = 2 },
+                                   onConfirm = { magicText ->
+                                       isThinking = true
+                                       magicError = null
+                                       coroutineScope.launch {
+                                           try {
+                                               val today = getToday()
+                                               val result = aiService.parseNote(magicText, apiKey, today)
+                                               
+                                               if (result != null) {
+                                                   val colorIdx = result.colorIndex.coerceIn(0, 7)
+                                                   val targetDate = if (result.year != null && result.month != null && result.day != null) {
+                                                       LocalDate(result.year, result.month, result.day)
+                                                   } else {
+                                                       today
+                                                   }
+                                                   val time = targetDate.atTime(result.hour, result.minute)
+                                                   
+                                                   val note = CalendarNote(
+                                                       time = time,
+                                                       text = result.text,
+                                                       color = noteColors[colorIdx]
+                                                   )
+                                                   dbHelper.insert(note)
+                                                   val insertedId = dbHelper.getLastInsertedNoteId()
+                                                   
+                                                   selection = CalendarDay(targetDate, DayPosition.MonthDate)
+                                                   recentlyAddedDate = targetDate
+                                                   
+                                                   val targetMonth = YearMonth(targetDate.year, targetDate.month)
+                                                   if (targetMonth != state.firstVisibleMonth.yearMonth) {
+                                                       state.animateScrollToMonth(targetMonth)
+                                                   }
+                                                   
+                                                   sheetMode = 0 
+                                                   
+                                                   val snackResult = snackbarHostState.showSnackbar(
+                                                       message = "Saved: ${result.text} ($targetDate)",
+                                                       actionLabel = "UNDO",
+                                                       duration = SnackbarDuration.Short
+                                                   )
+                                                   
+                                                   if (snackResult == SnackbarResult.ActionPerformed && insertedId != null) {
+                                                       dbHelper.deleteById(insertedId)
+                                                        snackbarHostState.showSnackbar("Note deleted")
+                                                   }
+                                               } else {
+                                                   magicError = "Could not understand note."
+                                               }
+                                           } catch (e: Exception) {
+                                               e.printStackTrace()
+                                               magicError = "Error: ${e.message ?: e.toString()}"
+                                           } finally {
+                                               isThinking = false
+                                           }
+                                       }
+                                   }
+                               )
                             }
                         }
-
-
-                        // Bottom Input Button (Prominent)
-                        if (sheetMode == 0) {
-                           Box(
-                               modifier = Modifier
-                                   .fillMaxWidth()
-                                   .background(pageBackgroundColor)
-                                   .padding(16.dp)
-                                   .navigationBarsPadding()
-                                   .imePadding(),
-                               contentAlignment = Alignment.Center
-                           ) {
-                               Button(
-                                    onClick = { sheetMode = 1 },
-                                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                                    shape = RoundedCornerShape(28.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = itemBackgroundColor,
-                                        contentColor = Color.White
-                                    )
-                               ) {
-                                    Text("New Note", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                               }
-                           }
-                        }
+                    },
+                    snackbarHost = {
+                        SnackbarHost(
+                            hostState = snackbarHostState,
+                            modifier = Modifier
+                                .padding(bottom = 80.dp)
+                                .zIndex(2f)
+                        )
+                    }
+                ) { innerPadding ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .applyScaffoldHorizontalPaddingsLocal()
+                    ) {
                         
+                        CompositionLocalProvider(LocalContentColor provides Color.White) {
+                            HorizontalCalendar(
+                                modifier = Modifier.wrapContentWidth(),
+                                state = state,
+                                dayContent = { day ->
+                                    val notesForDay = if (day.position == DayPosition.MonthDate) {
+                                        notes.filter { it.time.date == day.date }
+                                    } else {
+                                        emptyList()
+                                    }
+                                    Day(
+                                        day = day,
+                                        isSelected = selection == day,
+                                        isHighlighted = day.date == recentlyAddedDate,
+                                        notes = notesForDay,
+                                    ) { clicked ->
+                                        selection = clicked
+                                    }
+                                },
+                                monthHeader = {
+                                    MonthHeader(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        daysOfWeek = daysOfWeek,
+                                    )
+                                },
+                            )
+                            HorizontalDivider(color = pageBackgroundColor)
+                            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                                items(items = notesInSelectedDate.value) { note ->
+                                    NoteInformation(note, onDelete = { dbHelper.deleteById(note.id) })
+                                }
+                            }
+                        }
                     }
                 }
-                        // Overlay Sheet
+                        // Manual Overlay Sheet
                         AnimatedVisibility(
-                            visible = sheetMode != 0,
+                            visible = sheetMode == 2,
                             enter = fadeIn() + slideInVertically { it },
                             exit = fadeOut() + slideOutVertically { it },
                             modifier = Modifier.fillMaxSize().zIndex(1f)
@@ -327,141 +391,66 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .imePadding() // CRITICAL FIX: Respect keyboard
+                                    .imePadding()
                                     .background(Color.Black.copy(alpha = 0.5f))
                                     .clickable { sheetMode = 0 }
                             ) {
                                 Column(
                                     modifier = Modifier
-                                        .align(Alignment.BottomCenter) // CHANGED BACK TO BOTTOM (Sitting on keyboard)
+                                        .align(Alignment.BottomCenter)
                                         .fillMaxWidth()
                                         .background(
                                              color = pageBackgroundColor,
                                              shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                                         )
                                         .clickable(enabled = false) {}
-                                        .padding(16.dp) // Removed safe margin, handled by padding
-                                        , // Trailing comma for verticalArrangement
+                                        .padding(16.dp),
                                     verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    if (sheetMode == 1) { // Magic
-                                        MagicInputContent(
-                                            error = magicError,
-                                            isLoading = isThinking,
-                                            onSwitchToManual = { sheetMode = 2 },
-                                            onConfirm = { magicText ->
-                                                isThinking = true
-                                                magicError = null
-                                                // debugLogs = "Starting..." // Removing debug logs
-                                                coroutineScope.launch {
-                                                    try {
-                                                        val today = getToday()
-                                                        val result = aiService.parseNote(magicText, apiKey, today)
-                                                        
-                                                        if (result != null) {
-                                                            val colorIdx = result.colorIndex.coerceIn(0, 7)
-                                                            val targetDate = if (result.year != null && result.month != null && result.day != null) {
-                                                                LocalDate(result.year, result.month, result.day)
-                                                            } else {
-                                                                today
-                                                            }
-                                                            val time = targetDate.atTime(result.hour, result.minute)
-                                                            
-                                                            val note = CalendarNote(
-                                                                time = time,
-                                                                text = result.text,
-                                                                color = noteColors[colorIdx]
-                                                            )
-                                                            dbHelper.insert(note)
-                                                            val insertedId = dbHelper.getLastInsertedNoteId()
-                                                            
-                                                            selection = CalendarDay(targetDate, DayPosition.MonthDate)
-                                                            recentlyAddedDate = targetDate
-                                                            
-                                                            // Auto-scroll
-                                                            val targetMonth = YearMonth(targetDate.year, targetDate.month)
-                                                            if (targetMonth != state.firstVisibleMonth.yearMonth) {
-                                                                state.animateScrollToMonth(targetMonth)
-                                                            }
-                                                            
-                                                            sheetMode = 0
-                                                            
-                                                            // Show Snackbar with Undo
-                                                            val snackResult = snackbarHostState.showSnackbar(
-                                                                message = "Saved: ${result.text} ($targetDate)",
-                                                                actionLabel = "UNDO",
-                                                                duration = SnackbarDuration.Short
-                                                            )
-                                                            
-                                                            if (snackResult == SnackbarResult.ActionPerformed && insertedId != null) {
-                                                                dbHelper.deleteById(insertedId)
-                                                                // Optional: Restore confirmation?
-                                                                 snackbarHostState.showSnackbar("Note deleted")
-                                                            }
-                                                        } else {
-                                                            magicError = "Could not understand note."
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        e.printStackTrace()
-                                                        magicError = "Error: ${e.message ?: e.toString()}"
-                                                    } finally {
-                                                        isThinking = false
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    } else { // Manual
-                                        AddNoteContent(
-                                            text = text,
-                                            onTextChange = { text = it },
-                                            selectedColor = selectedColor,
-                                            selectedTime = selectedTime,
-                                            onColorChange = { selectedColor = it },
-                                            onTimeChange = { selectedTime = it },
-                                            onAdd = {
-                                                val date = selection?.date ?: getToday()
-                                                val note = CalendarNote(time = date.atTime(selectedTime), text = text, color = selectedColor)
-                                                dbHelper.insert(note)
-                                                val insertedId = dbHelper.getLastInsertedNoteId()
-                                                
-                                                text = ""
-                                                sheetMode = 0
-                                                
-                                                if (selection == null) {
-                                                    selection = CalendarDay(date, DayPosition.MonthDate)
-                                                }
-                                                recentlyAddedDate = date
-                                                
-                                                val targetMonth = YearMonth(date.year, date.month)
-                                                coroutineScope.launch {
-                                                    if (targetMonth != state.firstVisibleMonth.yearMonth) {
-                                                        state.animateScrollToMonth(targetMonth)
-                                                    }
-                                                    val snackResult = snackbarHostState.showSnackbar(
-                                                        message = "Saved note for $date",
-                                                        actionLabel = "UNDO",
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                    if (snackResult == SnackbarResult.ActionPerformed && insertedId != null) {
-                                                        dbHelper.deleteById(insertedId)
-                                                        snackbarHostState.showSnackbar("Note deleted")
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    }
+                                     AddNoteContent(
+                                         text = text,
+                                         onTextChange = { text = it },
+                                         selectedColor = selectedColor,
+                                         selectedTime = selectedTime,
+                                         onColorChange = { selectedColor = it },
+                                         onTimeChange = { selectedTime = it },
+                                         onAdd = {
+                                             val date = selection?.date ?: getToday()
+                                             val note = CalendarNote(time = date.atTime(selectedTime), text = text, color = selectedColor)
+                                             dbHelper.insert(note)
+                                             val insertedId = dbHelper.getLastInsertedNoteId()
+                                             
+                                             text = ""
+                                             sheetMode = 0
+                                             
+                                             if (selection == null) {
+                                                 selection = CalendarDay(date, DayPosition.MonthDate)
+                                             }
+                                             recentlyAddedDate = date
+                                             
+                                             val targetMonth = YearMonth(date.year, date.month)
+                                             coroutineScope.launch {
+                                                 if (targetMonth != state.firstVisibleMonth.yearMonth) {
+                                                     state.animateScrollToMonth(targetMonth)
+                                                 }
+                                                 val snackResult = snackbarHostState.showSnackbar(
+                                                     message = "Saved note for $date",
+                                                     actionLabel = "UNDO",
+                                                     duration = SnackbarDuration.Short
+                                                 )
+                                                 if (snackResult == SnackbarResult.ActionPerformed && insertedId != null) {
+                                                     dbHelper.deleteById(insertedId)
+                                                     snackbarHostState.showSnackbar("Note deleted")
+                                                 }
+                                             }
+                                         }
+                                     )
                                 }
                             }
                         }
             
-            // Snackbar Host (High Z-index to be on top)
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 80.dp) // Avoid overlapping the FAB/Bottom bar (roughly)
-                    .zIndex(2f)
-            )
+
+            // Removed duplicate SnackbarHost from here as it is now in Scaffold
         }
     }
 }
@@ -644,6 +633,7 @@ private fun Day(
                 .fillMaxWidth()
                 .padding(bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
+            
         ) {
             val grouped = notes.groupBy { it.color }
             grouped.forEach { (color, notesForColor) ->
@@ -765,18 +755,18 @@ fun MagicInputContent(
     var text by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+    val launchSpeech = rememberSpeechRecognizer { spokenText ->
+        val separator = if (text.isBlank()) "" else " "
+        text = text + separator + spokenText
     }
     
-    // COMPACT KEYBOARD FIX:
-    // 1. Background to cover calendar if needed.
-    // 2. imePadding to move UP with keyboard.
+    // Auto-focus on first load if desired (optional for persistent bar, maybe annoying if it pops keyboard immediately)
+    // Removed auto-focus to avoid keyboard popping up on app launch.
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(itemBackgroundColor) 
-            .imePadding() 
+            .background(Colors.example5ItemViewBgColor) 
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -789,11 +779,11 @@ fun MagicInputContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-             // Manual Toggle (Icon only)
+             // Manual Mode Toggle ("Writing" / Edit Icon)
              IconButton(onClick = onSwitchToManual) {
                  Icon(
-                     imageVector = Icons.Default.Settings, 
-                     contentDescription = "Manual", 
+                     imageVector = Icons.Default.Edit, // UPDATED ICON
+                     contentDescription = "Manual Mode", 
                      tint = Color.Gray,
                      modifier = Modifier.size(24.dp)
                  )
@@ -802,50 +792,60 @@ fun MagicInputContent(
              OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("Lunch tomorrow 2pm...", fontSize = 14.sp, color = Color.LightGray) },
+                placeholder = { Text("New Note...", fontSize = 14.sp, color = Color.Gray) },
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(focusRequester),
                 minLines = 1,
-                maxLines = 2,
+                maxLines = 3,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
                     cursorColor = Color.White,
-                    focusedIndicatorColor = Color.White,
-                    unfocusedIndicatorColor = Color.Gray
+                    focusedIndicatorColor = Color.Transparent, // Clean look
+                    unfocusedIndicatorColor = Color.Transparent
                 )
             )
-
-            Button(
-                onClick = { onConfirm(text) },
-                enabled = text.isNotBlank() && !isLoading,
-                contentPadding = PaddingValues(0.dp),
-                modifier = Modifier.size(48.dp), // Compact button
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
-                    disabledContainerColor = Color.Gray
-                )
-            ) {
-                if (isLoading) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.Black
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Check, 
-                        contentDescription = "Save"
-                    )
+            
+            // Mic Icon (Always visible if text is empty, or prioritized)
+            if (text.isBlank()) {
+                IconButton(onClick = { launchSpeech() }) {
+                     Icon(
+                         imageVector = Icons.Default.Mic, 
+                         contentDescription = "Voice Input", 
+                         tint = Color.Gray
+                     )
                 }
             }
-        }
-        
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-             Text("Powered by Groq", fontSize = 10.sp, color = Color.Gray)
+
+            // Send/Save Button (Visible when text is present)
+            if (text.isNotBlank()) {
+                IconButton(
+                    onClick = { 
+                        onConfirm(text) 
+                        text = "" // Clear after send
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier
+                        .background(Color.White, CircleShape)
+                        .size(40.dp)
+                ) {
+                    if (isLoading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.Black
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Check, 
+                            contentDescription = "Save",
+                            tint = Color.Black
+                        )
+                    }
+                }
+            }
         }
     }
 }
