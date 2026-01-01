@@ -17,3 +17,6 @@ INSERT INTO Note (date, text, color, time) VALUES (?, ?, ?, ?);
 
 delete:
 DELETE FROM Note WHERE id = ?;
+
+selectLast:
+SELECT * FROM Note ORDER BY id DESC LIMIT 1;

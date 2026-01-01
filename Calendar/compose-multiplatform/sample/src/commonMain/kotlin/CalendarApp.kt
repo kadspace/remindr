@@ -78,6 +78,10 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -207,6 +211,7 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
         }
         Screen.Calendar -> {
             // Hoisted State for Overlay & Calendar
+            val snackbarHostState = remember { SnackbarHostState() }
             val aiService = remember { AIService() }
             var isThinking by remember { mutableStateOf(false) }
             var magicError by remember { mutableStateOf<String?>(null) }
@@ -342,67 +347,61 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                                     if (sheetMode == 1) { // Magic
                                         MagicInputContent(
                                             error = magicError,
-                                            logs = debugLogs, // Pass logs
                                             isLoading = isThinking,
                                             onSwitchToManual = { sheetMode = 2 },
                                             onConfirm = { magicText ->
                                                 isThinking = true
                                                 magicError = null
-                                                debugLogs = "Starting..." // Reset logs
+                                                // debugLogs = "Starting..." // Removing debug logs
                                                 coroutineScope.launch {
                                                     try {
-                                                        fun log(msg: String) {
-                                                            println(msg)
-                                                            debugLogs += "\n$msg"
-                                                        }
-                                                        
-                                                        // Use safe date for "today"
                                                         val today = getToday()
-                                                        log("DEBUG: Magic Note Text: $magicText")
-                                                        log("DEBUG: Raw Today: $today")
-                                                        log("DEBUG: Date Details: Year=${today.year}, Month=${today.monthNumber}, Day=${today.dayOfMonth}")
-                                                        
                                                         val result = aiService.parseNote(magicText, apiKey, today)
-                                                        log("DEBUG: AI Raw Result: $result")
                                                         
                                                         if (result != null) {
                                                             val colorIdx = result.colorIndex.coerceIn(0, 7)
                                                             val targetDate = if (result.year != null && result.month != null && result.day != null) {
                                                                 LocalDate(result.year, result.month, result.day)
                                                             } else {
-                                                                today // Fallback or if none specified
+                                                                today
                                                             }
                                                             val time = targetDate.atTime(result.hour, result.minute)
                                                             
-                                                            log("DEBUG: Calculated Target Date: $targetDate")
-                                                            log("DEBUG: Calculated Time: $time")
-
                                                             val note = CalendarNote(
                                                                 time = time,
                                                                 text = result.text,
                                                                 color = noteColors[colorIdx]
                                                             )
                                                             dbHelper.insert(note)
-                                                            log("DEBUG: Note inserted into DB")
-                                                            
+                                                            val insertedId = dbHelper.getLastInsertedNoteId()
                                                             
                                                             selection = CalendarDay(targetDate, DayPosition.MonthDate)
-                                                            recentlyAddedDate = targetDate // Trigger highlight
+                                                            recentlyAddedDate = targetDate
                                                             
-                                                            // Auto-scroll to the target month
+                                                            // Auto-scroll
                                                             val targetMonth = YearMonth(targetDate.year, targetDate.month)
                                                             if (targetMonth != state.firstVisibleMonth.yearMonth) {
                                                                 state.animateScrollToMonth(targetMonth)
                                                             }
                                                             
-                                                            // Close sheet as requested by user
                                                             sheetMode = 0
-                                                            log("DONE. Verify note on date: $targetDate")
+                                                            
+                                                            // Show Snackbar with Undo
+                                                            val snackResult = snackbarHostState.showSnackbar(
+                                                                message = "Saved: ${result.text} ($targetDate)",
+                                                                actionLabel = "UNDO",
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                            
+                                                            if (snackResult == SnackbarResult.ActionPerformed && insertedId != null) {
+                                                                dbHelper.deleteById(insertedId)
+                                                                // Optional: Restore confirmation?
+                                                                 snackbarHostState.showSnackbar("Note deleted")
+                                                            }
                                                         } else {
-                                                            log("DEBUG: AI Result was null")
+                                                            magicError = "Could not understand note."
                                                         }
                                                     } catch (e: Exception) {
-                                                        debugLogs += "\nERROR: ${e.message}"
                                                         e.printStackTrace()
                                                         magicError = "Error: ${e.message ?: e.toString()}"
                                                     } finally {
@@ -413,39 +412,59 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                                         )
                                     } else { // Manual
                                         AddNoteContent(
-                                           text = text,
-                                           onTextChange = { text = it },
-                                           selectedColor = selectedColor,
-                                           selectedTime = selectedTime,
-                                           onColorChange = { selectedColor = it },
-                                           onTimeChange = { selectedTime = it },
+                                            text = text,
+                                            onTextChange = { text = it },
+                                            selectedColor = selectedColor,
+                                            selectedTime = selectedTime,
+                                            onColorChange = { selectedColor = it },
+                                            onTimeChange = { selectedTime = it },
                                             onAdd = {
                                                 val date = selection?.date ?: getToday()
-                                                dbHelper.insert(CalendarNote(time = date.atTime(selectedTime), text = text, color = selectedColor))
+                                                val note = CalendarNote(time = date.atTime(selectedTime), text = text, color = selectedColor)
+                                                dbHelper.insert(note)
+                                                val insertedId = dbHelper.getLastInsertedNoteId()
+                                                
                                                 text = ""
                                                 sheetMode = 0
-                                                // Ensure selection is jumping to today if null
+                                                
                                                 if (selection == null) {
                                                     selection = CalendarDay(date, DayPosition.MonthDate)
                                                 }
-                                                recentlyAddedDate = date // Trigger highlight
+                                                recentlyAddedDate = date
                                                 
-                                                // Auto-scroll
                                                 val targetMonth = YearMonth(date.year, date.month)
                                                 coroutineScope.launch {
                                                     if (targetMonth != state.firstVisibleMonth.yearMonth) {
                                                         state.animateScrollToMonth(targetMonth)
                                                     }
+                                                    val snackResult = snackbarHostState.showSnackbar(
+                                                        message = "Saved note for $date",
+                                                        actionLabel = "UNDO",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (snackResult == SnackbarResult.ActionPerformed && insertedId != null) {
+                                                        dbHelper.deleteById(insertedId)
+                                                        snackbarHostState.showSnackbar("Note deleted")
+                                                    }
                                                 }
-                                           }
+                                            }
                                         )
                                     }
                                 }
                             }
                         }
-            }
+            
+            // Snackbar Host (High Z-index to be on top)
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 80.dp) // Avoid overlapping the FAB/Bottom bar (roughly)
+                    .zIndex(2f)
+            )
         }
     }
+}
 }
 
 @Composable
@@ -739,7 +758,6 @@ private fun CalendarAppPreview() {
 @Composable
 fun MagicInputContent(
     error: String?,
-    logs: String,
     isLoading: Boolean,
     onSwitchToManual: () -> Unit,
     onConfirm: (String) -> Unit
@@ -764,26 +782,6 @@ fun MagicInputContent(
     ) {
         if (error != null) {
             Text(error, color = Color.Red, fontSize = 12.sp)
-        }
-        
-         // VISIBLE DEBUG LOGS (Optional, keeping small if present)
-        if (logs.isNotBlank()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 100.dp)
-                    .background(Color.Black.copy(alpha = 0.8f))
-                    .border(1.dp, Color.DarkGray)
-                    .padding(4.dp)
-                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
-            ) {
-                Text(
-                    text = logs,
-                    color = Color.Green,
-                    fontSize = 10.sp,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                )
-            }
         }
 
         Row(

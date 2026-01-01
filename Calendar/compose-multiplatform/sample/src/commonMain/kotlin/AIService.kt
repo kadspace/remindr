@@ -50,6 +50,16 @@ class AIService {
                    "minute": 0 (int, 0-59, default 0),
                    "color_index": 0 (int, 0-7, default 0)
                 }
+                
+                COLOR MAPPING (Use these indices if a color is mentioned):
+                0: Blue
+                1: Red
+                2: Brown
+                3: Grey
+                4: Teal/Green
+                5: Cyan
+                6: Pink
+                7: Orange
             """.trimIndent()
 
         val response: ChatCompletionResponse = client.post("https://api.groq.com/openai/v1/chat/completions") {

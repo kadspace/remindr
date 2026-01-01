@@ -42,6 +42,13 @@ class NoteDbHelper(database: RemindrDatabase) {
         queries.delete(id)
     }
 
+    fun getLastInsertedNoteId(): Long? {
+        // Run blocking or return via query. executeAsOneOrNull is synchronous on the driver usually.
+        // But since we are in `common` code using SQLDelight, verify if executeAsOneOrNull is available.
+        // Yes, standard SQLDelight API.
+        return queries.selectLast().executeAsOneOrNull()?.id
+    }
+
     fun delete(note: CalendarNote) {
          // We need an ID to delete robustly, but for now let's query by all fields or assume unique?
          // Our Schema has ID. CalendarNote needs ID??
