@@ -6,8 +6,8 @@ import com.kizitonwose.calendar.compose.multiplatform.sample.SampleColorScheme
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun App(driverFactory: DatabaseDriverFactory) {
+fun App(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean = false) {
     MaterialTheme(SampleColorScheme) {
-        CalendarApp(driverFactory)
+        CalendarApp(driverFactory, requestMagicAdd)
     }
 }

@@ -1,11 +1,22 @@
 package com.kizitonwose.calendar.compose.multiplatform.sample
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.collectAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.TwoWayConverter
+import androidx.compose.animation.core.AnimationVector4D
+import androidx.compose.animation.VectorConverter
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import com.kizitonwose.calendar.compose.multiplatform.sample.rememberSpeechRecognizer
 import com.kizitonwose.calendar.sample.db.RemindrDatabase
 import com.kizitonwose.calendar.compose.multiplatform.sample.DatabaseDriverFactory
@@ -35,6 +46,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -51,7 +63,6 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
-
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -106,10 +117,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.serialization.json.Json
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
-
-
-
-
 private val pageBackgroundColor: Color = Colors.example5PageBgColor
 private val itemBackgroundColor: Color = Colors.example5ItemViewBgColor
 private val toolbarColor: Color = Colors.example5ToolbarColor
@@ -127,8 +134,15 @@ private val noteColors = listOf(
     Color(0xFFEF6C00),
 )
 
+enum class Screen {
+    Calendar, Settings
+}
+
 @Composable
-fun CalendarApp(driverFactory: DatabaseDriverFactory) {
+fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean = false) {
+    var screen by remember { mutableStateOf(Screen.Calendar) }
+    
+    val coroutineScope = rememberCoroutineScope()
     // Database Init
     val database = remember { RemindrDatabase(driverFactory.createDriver()) }
     val dbHelper = remember { NoteDbHelper(database) }
@@ -136,54 +150,68 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory) {
     val currentMonth = remember { YearMonth.now() }
     val startMonth = remember { currentMonth.minusMonths(500) }
     val endMonth = remember { currentMonth.plusMonths(500) }
+    
     var selection by remember { mutableStateOf<CalendarDay?>(null) }
     val daysOfWeek = remember { daysOfWeek() }
+    
+    // Feature: Highlight recently added note
+    var recentlyAddedDate by remember { mutableStateOf<LocalDate?>(null) }
+    
+    // Clear highlight after a delay
+    LaunchedEffect(recentlyAddedDate) {
+        if (recentlyAddedDate != null) {
+            kotlinx.coroutines.delay(2000) // Highlight for 2 seconds
+            recentlyAddedDate = null
+        }
+    }
 
     // Load notes from DB
     val notes = dbHelper.getAllNotes().collectAsState(initial = emptyList()).value
     
+    var apiKey by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        dbHelper.getApiKey()?.let { apiKey = it }
+    }
+
+    // State for Magic/Manual Sheet
+    // 0 = Closed, 1 = Magic, 2 = Manual (reusing existing logic slightly modified)
+    var sheetMode by remember { mutableStateOf(0) } // 0: Closed, 1: Magic, 2: Manual
+    
+    // Magic Add Auto-Trigger
+    LaunchedEffect(requestMagicAdd) {
+        if (requestMagicAdd) sheetMode = 1
+    }
+
     val notesInSelectedDate = remember(notes, selection) {
         derivedStateOf {
             val date = selection?.date
             if (date == null) emptyList() else notes.filter { it.time.date == date }
         }
     }
-
-    // State for new note input
-    var isSheetOpen by remember { mutableStateOf(false) }
     
-    // Hoisted State for Split View
+    // Hoisted State for Manual View
     var text by remember { mutableStateOf("") }
     var selectedColor by remember { mutableStateOf(noteColors.first()) }
     var selectedTime by remember { mutableStateOf(LocalTime(8, 0)) }
-    
-    var apiKey by remember { mutableStateOf("") }
-    var showSettingsDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        dbHelper.getApiKey()?.let { apiKey = it }
-    }
+    when (screen) {
+        Screen.Settings -> {
+            SettingsScreen(
+                apiKey = apiKey,
+                onApiKeyChange = { newKey ->
+                    apiKey = newKey
+                    dbHelper.saveApiKey(newKey)
+                },
+                onBack = { screen = Screen.Calendar }
+            )
+        }
+        Screen.Calendar -> {
+            // Hoisted State for Overlay & Calendar
+            val aiService = remember { AIService() }
+            var isThinking by remember { mutableStateOf(false) }
+            var magicError by remember { mutableStateOf<String?>(null) }
+            var debugLogs by remember { mutableStateOf("") }
 
-    if (showSettingsDialog) {
-        SettingsDialog(
-            initialKey = apiKey,
-            onDismiss = { showSettingsDialog = false },
-            onSave = { newKey ->
-                apiKey = newKey
-                dbHelper.saveApiKey(newKey)
-                showSettingsDialog = false
-            }
-        )
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(pageBackgroundColor)
-                .applyScaffoldHorizontalPaddingsLocal()
-                .applyScaffoldBottomPaddingLocal(),
-        ) {
             val state = rememberCalendarState(
                 startMonth = startMonth,
                 endMonth = endMonth,
@@ -191,233 +219,230 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory) {
                 firstDayOfWeek = daysOfWeek.first(),
                 outDateStyle = OutDateStyle.EndOfGrid,
             )
-            val coroutineScope = rememberCoroutineScope()
-            val visibleMonth = rememberFirstCompletelyVisibleMonth(state)
-            LaunchedEffect(visibleMonth) {
-                // Clear selection if we scroll to a new month.
-                selection = null
-            }
 
-        // Draw light content on dark background.
-        CompositionLocalProvider(LocalContentColor provides Color.White) {
-            SimpleCalendarTitle(
-                modifier = Modifier
-                    .background(toolbarColor)
-                    .padding(horizontal = 8.dp, vertical = 12.dp)
-                    .applyScaffoldTopPaddingLocal(),
-                currentMonth = visibleMonth.yearMonth,
-                goToPrevious = {
-                    coroutineScope.launch {
-                        state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.previous)
-                    }
-                },
-                goToNext = {
-                    coroutineScope.launch {
-                        state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.next)
-                    }
-                },
-                onSettingsClick = { showSettingsDialog = true }
-            )
-            HorizontalCalendar(
-                modifier = Modifier.wrapContentWidth(),
-                state = state,
-                dayContent = { day ->
-                    val notesForDay = if (day.position == DayPosition.MonthDate) {
-                        notes.filter { it.time.date == day.date }
-                    } else {
-                        emptyList()
-                    }
-                    Day(
-                        day = day,
-                        isSelected = selection == day,
-                        notes = notesForDay,
-                    ) { clicked ->
-                        selection = clicked
-                    }
-                },
-                monthHeader = {
-                    MonthHeader(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        daysOfWeek = daysOfWeek,
-                    )
-                },
-            )
-            HorizontalDivider(color = pageBackgroundColor)
-            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                items(items = notesInSelectedDate.value) { note ->
-                    NoteInformation(note, onDelete = { dbHelper.deleteById(note.id) })
-                }
-            }
-
-
-
-            val aiService = remember { AIService() }
-            var showMagicDialog by remember { mutableStateOf(false) }
-            var isThinking by remember { mutableStateOf(false) }
-            var magicError by remember { mutableStateOf<String?>(null) }
-            
-            if (showMagicDialog) {
-                MagicDialog(
-                    onDismiss = { showMagicDialog = false },
-                    initialKey = apiKey,
-                    error = magicError,
-                    isLoading = isThinking,
-                    onConfirm = { magicText, key ->
-                        isThinking = true
-                        magicError = null
-                        coroutineScope.launch {
-                            try {
-                                val result = aiService.parseNote(magicText, key)
-                                println("Magic Add Result: $result") // LOGGING
-                                
-                                // If successful
-                                if (result != null) {
-                                    val colorIdx = result.colorIndex.coerceIn(0, 7)
-                                    
-                                    // Calculate target day (Default to start of current month as fallback for now)
-                                    val nowYM = YearMonth.now() 
-                                    val topDay = kotlinx.datetime.LocalDate(nowYM.year, nowYM.month, 1)
-                                    val targetDate = topDay.plus(DatePeriod(days = result.dayOffset))
-                                    
-                                    // Construct Note
-                                    val time = targetDate.atTime(result.hour, result.minute)
-                                    val note = CalendarNote(
-                                        time = time,
-                                        text = result.text,
-                                        color = noteColors[colorIdx]
-                                    )
-                                    
-                                    // Save to DB
-                                    dbHelper.insert(note)
-
-                                    // Move selection to that day so user sees the new dot
-                                    selection = CalendarDay(targetDate, DayPosition.MonthDate)
-
-                                    // Close Dialog, Do NOT open sheet
-                                    showMagicDialog = false
-                                    magicError = null // Clear any error
-                                }
-                            } catch (e: Exception) {
-                                magicError = "Error: ${e.message ?: e.toString()}"
-                                e.printStackTrace()
-                            } finally {
-                                isThinking = false
-                            }
-                        }
-                    }
-                )
-            }
-
-            // Bottom Input Field (Trigger) - Always Visible when sheet is CLOSED
-            if (!isSheetOpen) {
-               Row(
-                   modifier = Modifier
-                       .fillMaxWidth()
-                       .background(pageBackgroundColor)
-                       .padding(16.dp)
-                       .navigationBarsPadding()
-                       .imePadding(),
-                   horizontalArrangement = Arrangement.spacedBy(8.dp),
-                   verticalAlignment = Alignment.CenterVertically
-               ) {
-                   // Magic Button (Outside)
-                   IconButton(
-                        onClick = { showMagicDialog = true },
-                        modifier = Modifier.background(itemBackgroundColor, CircleShape)
-                   ) {
-                        if (isThinking) {
-                              androidx.compose.material3.CircularProgressIndicator(
-                                  modifier = Modifier.size(24.dp),
-                                  color = Color.White,
-                                  strokeWidth = 2.dp
-                              )
-                        } else {
-                             Icon(androidx.compose.material.icons.Icons.Filled.AutoFixHigh, contentDescription = "Magic AI", tint = Color.Yellow)
-                        }
-                   }
-
-                   OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it },
-                        label = { Text("Type a note...", color = Color.White) },
-                        readOnly = true, // It's just a trigger
-                        enabled = true,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { isSheetOpen = true }, 
-                        interactionSource = remember { MutableInteractionSource() }
-                            .also { interactionSource ->
-                                LaunchedEffect(interactionSource) {
-                                    interactionSource.interactions.collect {
-                                        if (it is PressInteraction.Release) {
-                                            isSheetOpen = true
-                                        }
-                                    }
-                                }
-                            },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = itemBackgroundColor,
-                            unfocusedContainerColor = itemBackgroundColor,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = Color.White,
-                            focusedIndicatorColor = selectedColor,
-                            unfocusedIndicatorColor = Color.Gray
-                        )
-                    )
-                }
-            }
-
-
-        }
-    }
-
-        // Overlay Sheet
-        AnimatedVisibility(
-            visible = isSheetOpen && selection != null,
-            enter = fadeIn() + slideInVertically(),
-            exit = fadeOut() + slideOutVertically(),
-            modifier = Modifier.fillMaxSize().zIndex(1f) // Ensure on top
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { isSheetOpen = false } // Dismiss on scrim click
-            ) {
-                 // Stop propagation of clicks to the scrim
+            Box(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter) // Smart Bottom Panel
-                        .fillMaxWidth()
-                        .background(
-                             color = pageBackgroundColor,
-                             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp) // Top corners rounded
-                        )
-                        .clickable(enabled = false) {} // Prevent clicks passing through content
-                        .padding(16.dp)
-                        .navigationBarsPadding() 
-                        .imePadding(), // Push up with keyboard
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .fillMaxSize()
+                        .background(pageBackgroundColor)
+                        .applyScaffoldHorizontalPaddingsLocal()
+                        .applyScaffoldBottomPaddingLocal(),
                 ) {
-                   // Spacer(Modifier.height(24.dp)) // No extra top padding needed for bottom sheet
+                    val visibleMonth = rememberFirstCompletelyVisibleMonth(state)
+                    LaunchedEffect(visibleMonth) {
+                        selection = null
+                    }
 
-                   AddNoteContent(
-                       text = text,
-                       onTextChange = { text = it },
-                       selectedColor = selectedColor,
-                       selectedTime = selectedTime,
-                       onColorChange = { selectedColor = it },
-                       onTimeChange = { selectedTime = it },
-                        onAdd = {
-                            val date = selection?.date ?: kotlinx.datetime.LocalDate(currentMonth.year, currentMonth.month, 1)
-                            dbHelper.insert(CalendarNote(time = date.atTime(selectedTime), text = text, color = selectedColor))
-                            
-                            text = "" // Clear text on add
-                            isSheetOpen = false
-                       }
-                   )
+                    CompositionLocalProvider(LocalContentColor provides Color.White) {
+                        SimpleCalendarTitle(
+                            modifier = Modifier
+                                .background(toolbarColor)
+                                .padding(horizontal = 8.dp, vertical = 12.dp)
+                                .applyScaffoldTopPaddingLocal(),
+                            currentMonth = visibleMonth.yearMonth,
+                            goToPrevious = {
+                                coroutineScope.launch {
+                                    state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.previous)
+                                }
+                            },
+                            goToNext = {
+                                coroutineScope.launch {
+                                    state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.next)
+                                }
+                            },
+                            onSettingsClick = { screen = Screen.Settings }
+                        )
+                        HorizontalCalendar(
+                            modifier = Modifier.wrapContentWidth(),
+                            state = state,
+                            dayContent = { day ->
+                                val notesForDay = if (day.position == DayPosition.MonthDate) {
+                                    notes.filter { it.time.date == day.date }
+                                } else {
+                                    emptyList()
+                                }
+                                Day(
+                                    day = day,
+                                    isSelected = selection == day,
+                                    isHighlighted = day.date == recentlyAddedDate, // Pass highlight state
+                                    notes = notesForDay,
+                                ) { clicked ->
+                                    selection = clicked
+                                }
+                            },
+                            monthHeader = {
+                                MonthHeader(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    daysOfWeek = daysOfWeek,
+                                )
+                            },
+                        )
+                        HorizontalDivider(color = pageBackgroundColor)
+                        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                            items(items = notesInSelectedDate.value) { note ->
+                                NoteInformation(note, onDelete = { dbHelper.deleteById(note.id) })
+                            }
+                        }
+
+
+                        // Bottom Input Button (Prominent)
+                        if (sheetMode == 0) {
+                           Box(
+                               modifier = Modifier
+                                   .fillMaxWidth()
+                                   .background(pageBackgroundColor)
+                                   .padding(16.dp)
+                                   .navigationBarsPadding()
+                                   .imePadding(),
+                               contentAlignment = Alignment.Center
+                           ) {
+                               Button(
+                                    onClick = { sheetMode = 1 },
+                                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                                    shape = RoundedCornerShape(28.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = itemBackgroundColor,
+                                        contentColor = Color.White
+                                    )
+                               ) {
+                                    Text("New Note", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                               }
+                           }
+                        }
+                        
+                    }
                 }
+                        // Overlay Sheet
+                        AnimatedVisibility(
+                            visible = sheetMode != 0,
+                            enter = fadeIn() + slideInVertically { it },
+                            exit = fadeOut() + slideOutVertically { it },
+                            modifier = Modifier.fillMaxSize().zIndex(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .imePadding() // CRITICAL FIX: Respect keyboard
+                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .clickable { sheetMode = 0 }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter) // CHANGED BACK TO BOTTOM (Sitting on keyboard)
+                                        .fillMaxWidth()
+                                        .background(
+                                             color = pageBackgroundColor,
+                                             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                                        )
+                                        .clickable(enabled = false) {}
+                                        .padding(16.dp) // Removed safe margin, handled by padding
+                                        , // Trailing comma for verticalArrangement
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    if (sheetMode == 1) { // Magic
+                                        MagicInputContent(
+                                            error = magicError,
+                                            logs = debugLogs, // Pass logs
+                                            isLoading = isThinking,
+                                            onSwitchToManual = { sheetMode = 2 },
+                                            onConfirm = { magicText ->
+                                                isThinking = true
+                                                magicError = null
+                                                debugLogs = "Starting..." // Reset logs
+                                                coroutineScope.launch {
+                                                    try {
+                                                        fun log(msg: String) {
+                                                            println(msg)
+                                                            debugLogs += "\n$msg"
+                                                        }
+                                                        
+                                                        // Use safe date for "today"
+                                                        val today = getToday()
+                                                        log("DEBUG: Magic Note Text: $magicText")
+                                                        log("DEBUG: Raw Today: $today")
+                                                        log("DEBUG: Date Details: Year=${today.year}, Month=${today.monthNumber}, Day=${today.dayOfMonth}")
+                                                        
+                                                        val result = aiService.parseNote(magicText, apiKey, today)
+                                                        log("DEBUG: AI Raw Result: $result")
+                                                        
+                                                        if (result != null) {
+                                                            val colorIdx = result.colorIndex.coerceIn(0, 7)
+                                                            val targetDate = if (result.year != null && result.month != null && result.day != null) {
+                                                                LocalDate(result.year, result.month, result.day)
+                                                            } else {
+                                                                today // Fallback or if none specified
+                                                            }
+                                                            val time = targetDate.atTime(result.hour, result.minute)
+                                                            
+                                                            log("DEBUG: Calculated Target Date: $targetDate")
+                                                            log("DEBUG: Calculated Time: $time")
+
+                                                            val note = CalendarNote(
+                                                                time = time,
+                                                                text = result.text,
+                                                                color = noteColors[colorIdx]
+                                                            )
+                                                            dbHelper.insert(note)
+                                                            log("DEBUG: Note inserted into DB")
+                                                            
+                                                            
+                                                            selection = CalendarDay(targetDate, DayPosition.MonthDate)
+                                                            recentlyAddedDate = targetDate // Trigger highlight
+                                                            
+                                                            // Auto-scroll to the target month
+                                                            val targetMonth = YearMonth(targetDate.year, targetDate.month)
+                                                            if (targetMonth != state.firstVisibleMonth.yearMonth) {
+                                                                state.animateScrollToMonth(targetMonth)
+                                                            }
+                                                            
+                                                            // Close sheet as requested by user
+                                                            sheetMode = 0
+                                                            log("DONE. Verify note on date: $targetDate")
+                                                        } else {
+                                                            log("DEBUG: AI Result was null")
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        debugLogs += "\nERROR: ${e.message}"
+                                                        e.printStackTrace()
+                                                        magicError = "Error: ${e.message ?: e.toString()}"
+                                                    } finally {
+                                                        isThinking = false
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    } else { // Manual
+                                        AddNoteContent(
+                                           text = text,
+                                           onTextChange = { text = it },
+                                           selectedColor = selectedColor,
+                                           selectedTime = selectedTime,
+                                           onColorChange = { selectedColor = it },
+                                           onTimeChange = { selectedTime = it },
+                                            onAdd = {
+                                                val date = selection?.date ?: getToday()
+                                                dbHelper.insert(CalendarNote(time = date.atTime(selectedTime), text = text, color = selectedColor))
+                                                text = ""
+                                                sheetMode = 0
+                                                // Ensure selection is jumping to today if null
+                                                if (selection == null) {
+                                                    selection = CalendarDay(date, DayPosition.MonthDate)
+                                                }
+                                                recentlyAddedDate = date // Trigger highlight
+                                                
+                                                // Auto-scroll
+                                                val targetMonth = YearMonth(date.year, date.month)
+                                                coroutineScope.launch {
+                                                    if (targetMonth != state.firstVisibleMonth.yearMonth) {
+                                                        state.animateScrollToMonth(targetMonth)
+                                                    }
+                                                }
+                                           }
+                                        )
+                                    }
+                                }
+                            }
+                        }
             }
         }
     }
@@ -558,15 +583,33 @@ private fun AddNoteContent(
 private fun Day(
     day: CalendarDay,
     isSelected: Boolean = false,
+    isHighlighted: Boolean = false,
     notes: List<CalendarNote> = emptyList(),
     onClick: (CalendarDay) -> Unit = {},
 ) {
+    // Pulse animation for highlight (alpha)
+    val pulseAlpha = remember { Animatable(0f) }
+    LaunchedEffect(isHighlighted) {
+        if (isHighlighted) {
+            pulseAlpha.animateTo(
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(500, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                )
+            )
+        } else {
+            pulseAlpha.snapTo(0f)
+        }
+    }
+
     Box(
         modifier = Modifier
             .aspectRatio(1f) // This is important for square-sizing!
             .border(
-                width = if (isSelected) 1.dp else 0.dp,
-                color = if (isSelected) selectedItemColor else Color.Transparent,
+                width = if (isHighlighted) 3.dp else if (isSelected) 1.dp else 0.dp,
+                color = if (isHighlighted) Color(0xFFFFD700).copy(alpha = pulseAlpha.value) else if (isSelected) selectedItemColor else Color.Transparent,
+                shape = RoundedCornerShape(4.dp)
             )
             .padding(1.dp)
             .background(color = itemBackgroundColor)
@@ -694,64 +737,119 @@ private fun CalendarAppPreview() {
 */
 
 @Composable
-fun MagicDialog(
-    onDismiss: () -> Unit,
-    initialKey: String,
-    error: String? = null,
-    isLoading: Boolean = false,
-    onConfirm: (String, String) -> Unit
+fun MagicInputContent(
+    error: String?,
+    logs: String,
+    isLoading: Boolean,
+    onSwitchToManual: () -> Unit,
+    onConfirm: (String) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
-    var apiKey by remember { mutableStateOf(initialKey) } // Init from persisted key
+    val focusRequester = remember { FocusRequester() }
     
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Magic Add", color = Color.Black) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Describe your event:", color = Color.Black)
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    placeholder = { Text("e.g. Lunch with John at 1pm") },
-                    enabled = !isLoading
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+    
+    // COMPACT KEYBOARD FIX:
+    // 1. Background to cover calendar if needed.
+    // 2. imePadding to move UP with keyboard.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(itemBackgroundColor) 
+            .imePadding() 
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (error != null) {
+            Text(error, color = Color.Red, fontSize = 12.sp)
+        }
+        
+         // VISIBLE DEBUG LOGS (Optional, keeping small if present)
+        if (logs.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 100.dp)
+                    .background(Color.Black.copy(alpha = 0.8f))
+                    .border(1.dp, Color.DarkGray)
+                    .padding(4.dp)
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
+            ) {
+                Text(
+                    text = logs,
+                    color = Color.Green,
+                    fontSize = 10.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                 )
-                Text("Groq API Key:", color = Color.Black, fontSize = 12.sp)
-                 OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = { apiKey = it },
-                    placeholder = { Text("Paste API Key here") },
-                    singleLine = true,
-                    enabled = !isLoading
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+             // Manual Toggle (Icon only)
+             IconButton(onClick = onSwitchToManual) {
+                 Icon(
+                     imageVector = Icons.Default.Settings, 
+                     contentDescription = "Manual", 
+                     tint = Color.Gray,
+                     modifier = Modifier.size(24.dp)
+                 )
+             }
+             
+             OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text("Lunch tomorrow 2pm...", fontSize = 14.sp, color = Color.LightGray) },
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
+                minLines = 1,
+                maxLines = 2,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = Color.White,
+                    focusedIndicatorColor = Color.White,
+                    unfocusedIndicatorColor = Color.Gray
                 )
-                if (error != null) {
-                    Text(error, color = Color.Red, fontSize = 12.sp)
-                } else {
-                    Text("Get a free key from console.groq.com", fontSize = 10.sp, color = Color.Gray)
-                }
+            )
+
+            Button(
+                onClick = { onConfirm(text) },
+                enabled = text.isNotBlank() && !isLoading,
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier.size(48.dp), // Compact button
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black,
+                    disabledContainerColor = Color.Gray
+                )
+            ) {
                 if (isLoading) {
                     androidx.compose.material3.CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally),
-                        color = Color.Blue
+                        modifier = Modifier.size(20.dp),
+                        color = Color.Black
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Check, 
+                        contentDescription = "Save"
                     )
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(text, apiKey) },
-                enabled = text.isNotBlank() && apiKey.isNotBlank() && !isLoading
-            ) {
-                Text(if (isLoading) "Thinking..." else "Magify")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isLoading) {
-                Text("Cancel")
-            }
-        },
-        containerColor = Color.White // Force light background for dialog
-    )
+        }
+        
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+             Text("Powered by Groq", fontSize = 10.sp, color = Color.Gray)
+        }
+    }
 }
 
 
@@ -769,6 +867,3 @@ private fun kotlinx.datetime.DayOfWeek.displayText(uppercase: Boolean = false): 
     val name = this.name.lowercase().replaceFirstChar { it.uppercase() }
     return if (uppercase) name.take(3).uppercase() else name.take(3)
 }
-
-
-

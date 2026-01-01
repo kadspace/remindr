@@ -12,6 +12,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.datetime.LocalDate
 
 class AIService {
     private val client = HttpClient {
@@ -24,22 +25,32 @@ class AIService {
         }
     }
 
-    suspend fun parseNote(input: String, apiKey: String): ParsedNote? {
+    suspend fun parseNote(input: String, apiKey: String, currentDate: LocalDate): ParsedNote? {
         if (apiKey.isBlank()) throw IllegalArgumentException("API Key is empty")
-        
-        val systemPrompt = """
-            You are a helper that extracts calendar event details from text.
-            Evaluate the current year as 2025.
-            Output ONLY valid JSON. No markdown, no backticks, no explanations.
-            JSON Schema:
-            {
-               "text": "The main content of the note",
-               "hour": 8 (int, 0-23, default 8),
-               "minute": 0 (int, 0-59, default 0),
-               "day_offset": 0 (int, 0=today, 1=tomorrow, etc, default 0),
-               "color_index": 0 (int, 0-7, default 0)
-            }
-        """.trimIndent()
+                val systemPrompt = """
+                You are a helper that extracts calendar event details from text.
+                Current Date: $currentDate (YYYY-MM-DD).
+                Current Year: ${currentDate.year}.
+                
+                CRITICAL INSTRUCTION: Calculate the exact target date based on "Today".
+                - If "tomorrow" is Jan 1st and today is Dec 31st, the YEAR must be ${currentDate.year + 1}.
+                - If the event is in "January" and today is "December", increment the year.
+                
+                Extract the EVENT DATE from the text.
+                If no date is mentioned, use Today's date.
+                
+                Output ONLY valid JSON. No markdown, no backticks, no explanations.
+                JSON Schema:
+                {
+                   "text": "The main content of the note",
+                   "year": 2025 (int, default to current year. CHECK IF ROLLOVER NEEDED),
+                   "month": 1 (int, 1-12, default to current month),
+                   "day": 1 (int, 1-31, default to current day),
+                   "hour": 8 (int, 0-23, default 8),
+                   "minute": 0 (int, 0-59, default 0),
+                   "color_index": 0 (int, 0-7, default 0)
+                }
+            """.trimIndent()
 
         val response: ChatCompletionResponse = client.post("https://api.groq.com/openai/v1/chat/completions") {
             header("Authorization", "Bearer $apiKey")
@@ -72,9 +83,11 @@ class AIService {
 @Serializable
 data class ParsedNote(
     val text: String,
+    val year: Int? = null,
+    val month: Int? = null,
+    val day: Int? = null,
     val hour: Int = 8,
     val minute: Int = 0,
-    @SerialName("day_offset") val dayOffset: Int = 0,
     @SerialName("color_index") val colorIndex: Int = 0
 )
 
