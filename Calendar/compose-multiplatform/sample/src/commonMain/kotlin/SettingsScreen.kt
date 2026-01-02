@@ -130,8 +130,8 @@ fun SettingsScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Version", color = Colors.example5TextGrey)
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("1.5.1", color = Color.White)
-                        Text("Built: Jan 1, 02:40 PM", color = Colors.example5TextGrey, fontSize = 10.sp)
+                        Text("v1.6.0-alpha", color = Color.White)
+                        Text("Built: Jan 1, 09:22 PM", color = Colors.example5TextGrey, fontSize = 10.sp)
                     }
                 }
                 HorizontalDivider(color = Colors.example5ToolbarColor, modifier = Modifier.padding(vertical = 12.dp))

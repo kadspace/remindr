@@ -4,6 +4,7 @@ import com.kizitonwose.calendar.sample.db.RemindrDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Clock
 import com.kizitonwose.calendar.core.CalendarDay
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
@@ -54,6 +55,21 @@ class NoteDbHelper(database: RemindrDatabase) {
          // Our Schema has ID. CalendarNote needs ID??
          // The current CalendarNote data class doesn't have ID.
          // For simplicity, let's just not implement delete perfectly or add ID to CalendarNote.
+    }
+
+    private val queueQueries = database.queueQueries
+
+    fun getQueueNotes(): Flow<List<com.kizitonwose.calendar.sample.db.QueueNote>> {
+        return queueQueries.getAll().asFlow().mapToList(Dispatchers.IO)
+    }
+
+    fun insertQueue(text: String) {
+        val timestamp = getToday().toString()
+        queueQueries.insert(text, timestamp)
+    }
+
+    fun deleteQueueById(id: Long) {
+        queueQueries.deleteById(id)
     }
 
     fun getApiKey(): String? {

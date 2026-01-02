@@ -7,6 +7,6 @@ import com.kizitonwose.calendar.sample.db.RemindrDatabase
 
 actual class DatabaseDriverFactory(private val context: Context) {
     actual fun createDriver(): SqlDriver {
-        return AndroidSqliteDriver(RemindrDatabase.Schema, context, "remindr.db")
+        return AndroidSqliteDriver(RemindrDatabase.Schema, context, "remindr_v2.db")
     }
 }

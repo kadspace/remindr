@@ -7,3 +7,9 @@
 .externalNativeBuild
 .idea
 /.kotlin
+
+# Logs
+*.log
+*.txt
+crash.log
+build_log*.txt
