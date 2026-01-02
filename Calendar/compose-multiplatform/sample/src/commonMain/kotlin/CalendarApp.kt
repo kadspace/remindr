@@ -1,128 +1,71 @@
 package com.kizitonwose.calendar.compose.multiplatform.sample
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import kotlinx.datetime.Month
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.plus
+import kotlinx.datetime.minus
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.atTime
+import kotlinx.coroutines.launch
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.runtime.collectAsState
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.core.TwoWayConverter
-import androidx.compose.animation.core.AnimationVector4D
-import androidx.compose.animation.VectorConverter
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PageSize
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.text.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.zIndex
+// Removed java.time imports to fix type mismatch
+import kotlinx.datetime.LocalTime
+
 import com.kizitonwose.calendar.compose.multiplatform.sample.rememberSpeechRecognizer
 import com.kizitonwose.calendar.sample.db.RemindrDatabase
 import com.kizitonwose.calendar.compose.multiplatform.sample.DatabaseDriverFactory
 import com.kizitonwose.calendar.compose.multiplatform.sample.NoteDbHelper
 import com.kizitonwose.calendar.sample.db.QueueNote
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import com.kizitonwose.calendar.compose.multiplatform.sample.SimpleCalendarTitle
 import com.kizitonwose.calendar.compose.multiplatform.sample.rememberFirstCompletelyVisibleMonth
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyItemScope
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material3.SheetState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
+import com.kizitonwose.calendar.compose.WeekCalendar
+import com.kizitonwose.calendar.compose.weekcalendar.rememberWeekCalendarState
 import com.kizitonwose.calendar.compose.HorizontalCalendar
 import com.kizitonwose.calendar.compose.rememberCalendarState
-import com.kizitonwose.calendar.core.CalendarDay
-import com.kizitonwose.calendar.core.DayPosition
-import com.kizitonwose.calendar.core.OutDateStyle
-import com.kizitonwose.calendar.core.daysOfWeek
-import com.kizitonwose.calendar.core.minusMonths
-import com.kizitonwose.calendar.core.plusMonths
-import com.kizitonwose.calendar.core.now
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.filter
-import kotlinx.datetime.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.serialization.json.Json
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import com.kizitonwose.calendar.core.*
+
+// Extensions
+fun YearMonth.atStartOfMonth(): LocalDate = LocalDate(year, month, 1)
+fun YearMonth.atEndOfMonth(): LocalDate {
+    val start = atStartOfMonth()
+    val nextMonth = start.plus(1, DateTimeUnit.MONTH)
+    val end = nextMonth.minus(1, DateTimeUnit.DAY)
+    return end
+}
+// Note: lengthOfMonth not strictly needed if we implement atEndOfMonth correctly, 
+// but if used elsewhere, here it is:
+fun YearMonth.lengthOfMonth(): Int = atEndOfMonth().dayOfMonth
 
 private val pageBackgroundColor: Color = Colors.example5PageBgColor
 private val itemBackgroundColor: Color = Colors.example5ItemViewBgColor
@@ -145,14 +88,14 @@ enum class Screen {
     Calendar, Settings
 }
 
-enum class Tab {
-    Calendar, Notes
-}
+enum class Tab { Calendar, Notes }
+enum class CalendarViewMode { Year, Month }
 
 @Composable
 fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean = false) {
     var screen by remember { mutableStateOf(Screen.Calendar) }
     var currentTab by remember { mutableStateOf(Tab.Calendar) }
+    var viewMode by remember { mutableStateOf(CalendarViewMode.Month) }
     
     val coroutineScope = rememberCoroutineScope()
     // Database Init
@@ -233,6 +176,8 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                 firstDayOfWeek = daysOfWeek.first(),
                 outDateStyle = OutDateStyle.EndOfGrid,
             )
+            
+            // weekState removed
             
             val visibleMonth = rememberFirstCompletelyVisibleMonth(state)
             LaunchedEffect(visibleMonth) {
@@ -362,31 +307,127 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                     ) {
                         
                         CompositionLocalProvider(LocalContentColor provides Color.White) {
-                            HorizontalCalendar(
-                                modifier = Modifier.wrapContentWidth(),
-                                state = state,
-                                dayContent = { day ->
-                                    val notesForDay = if (day.position == DayPosition.MonthDate) {
-                                        notes.filter { it.time.date == day.date }
-                                    } else {
-                                        emptyList()
+                            // View Mode Switcher
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                val modes = CalendarViewMode.values()
+                                modes.forEach { mode ->
+                                    val isSelected = viewMode == mode
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(horizontal = 4.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(if (isSelected) selectedItemColor else Color.Transparent)
+                                            .clickable { viewMode = mode }
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = mode.name,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) Color.White else inActiveTextColor
+                                        )
                                     }
-                                    Day(
-                                        day = day,
-                                        isSelected = selection == day,
-                                        isHighlighted = day.date == recentlyAddedDate,
-                                        notes = notesForDay,
-                                    ) { clicked ->
-                                        selection = clicked
+                                }
+                            }
+
+                            AnimatedContent(
+                                targetState = viewMode,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                                }
+                            ) { mode ->
+                                when (mode) {
+                                    CalendarViewMode.Month -> {
+                                        HorizontalCalendar(
+                                            modifier = Modifier.wrapContentWidth(),
+                                            state = state,
+                                            dayContent = { day ->
+                                                val notesForDay = if (day.position == DayPosition.MonthDate) {
+                                                    notes.filter { it.time.date == day.date }
+                                                } else {
+                                                    emptyList()
+                                                }
+                                                Day(
+                                                    day = day,
+                                                    isSelected = selection == day,
+                                                    isHighlighted = day.date == recentlyAddedDate,
+                                                    notes = notesForDay,
+                                                ) { clicked ->
+                                                    selection = clicked
+                                                }
+                                            },
+                                            monthHeader = {
+                                                MonthHeader(
+                                                    modifier = Modifier.padding(vertical = 8.dp),
+                                                    daysOfWeek = daysOfWeek,
+                                                )
+                                            },
+                                        )
                                     }
-                                },
-                                monthHeader = {
-                                    MonthHeader(
-                                        modifier = Modifier.padding(vertical = 8.dp),
-                                        daysOfWeek = daysOfWeek,
-                                    )
-                                },
-                            )
+                                    CalendarViewMode.Year -> {
+                                        val initialPage = Int.MAX_VALUE / 2
+                                        val pagerState = rememberPagerState(initialPage = initialPage) { Int.MAX_VALUE }
+                                        
+                                        HorizontalPager(
+                                            state = pagerState,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) { page ->
+                                            val yearOffset = page - initialPage
+                                            val year = currentMonth.year + yearOffset
+                                            
+                                            Column(modifier = Modifier.fillMaxSize()) {
+                                                Text(
+                                                    text = year.toString(),
+                                                    style = MaterialTheme.typography.headlineMedium,
+                                                    color = Color.White,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 16.dp),
+                                                    textAlign = TextAlign.Center,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                
+                                                LazyVerticalGrid(
+                                                    columns = GridCells.Fixed(3),
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentPadding = PaddingValues(16.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                                ) {
+                                                    items(12) { index ->
+                                                        val monthName = Month.values()[index].name.take(3)
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .aspectRatio(1f)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(
+                                                                    if (year == currentMonth.year && index == currentMonth.month.ordinal) 
+                                                                        selectedItemColor.copy(alpha = 0.5f) 
+                                                                    else 
+                                                                        Color.DarkGray
+                                                                )
+                                                                .clickable {
+                                                                    coroutineScope.launch {
+                                                                        state.scrollToMonth(YearMonth(year, Month.values()[index]))
+                                                                        viewMode = CalendarViewMode.Month
+                                                                    }
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(text = monthName, color = Color.White, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             
                             // Tab Switcher

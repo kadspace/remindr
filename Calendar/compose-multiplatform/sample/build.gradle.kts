@@ -144,7 +144,7 @@ android {
         minSdk = Android.minSdk
         targetSdk = Android.targetSdk
         versionCode = 1
-        versionName = "1.6.0-alpha"
+        versionName = "1.6.1-alpha"
         multiDexEnabled = true
     }
     packaging {
