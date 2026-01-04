@@ -1,5 +1,7 @@
 package com.kizitonwose.calendar.compose.multiplatform.sample
 
+import kotlinx.coroutines.launch
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,14 +30,18 @@ import androidx.compose.ui.unit.sp
 fun SettingsScreen(
     apiKey: String,
     onApiKeyChange: (String) -> Unit,
+    onTestNotification: () -> Unit,
     onBack: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
     var showPassword by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = Colors.example5PageBgColor,
         contentColor = Color.White,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Settings", fontWeight = FontWeight.SemiBold) },
@@ -124,14 +130,31 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // Debug Section
+            SettingsCard(title = "Debug") {
+                Button(
+                    onClick = {
+                         onTestNotification()
+                         scope.launch { snackbarHostState.showSnackbar("Scheduled for 1:30 PM (Jan 4)") }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Colors.example1Selection,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Trigger Test Notification")
+                }
+            }
             
              // About Section
             SettingsCard(title = "About") {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Version", color = Colors.example5TextGrey)
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("v1.6.0-alpha", color = Color.White)
-                        Text("Built: Jan 1, 09:22 PM", color = Colors.example5TextGrey, fontSize = 10.sp)
+                        Text("v1.6.3", color = Color.White)
+                        Text("Built: Jan 4, 12:55 AM", color = Colors.example5TextGrey, fontSize = 10.sp)
                     }
                 }
                 HorizontalDivider(color = Colors.example5ToolbarColor, modifier = Modifier.padding(vertical = 12.dp))

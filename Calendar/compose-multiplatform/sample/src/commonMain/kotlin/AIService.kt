@@ -39,16 +39,24 @@ class AIService {
                 Extract the EVENT DATE from the text.
                 If no date is mentioned, use Today's date.
                 
-                Output ONLY valid JSON. No markdown, no backticks, no explanations.
+                Output ONLY valid JSON.
                 JSON Schema:
                 {
-                   "text": "The main content of the note",
-                   "year": 2025 (int, default to current year. CHECK IF ROLLOVER NEEDED),
-                   "month": 1 (int, 1-12, default to current month),
-                   "day": 1 (int, 1-31, default to current day),
-                   "hour": 8 (int, 0-23, default 8),
-                   "minute": 0 (int, 0-59, default 0),
-                   "color_index": 0 (int, 0-7, default 0)
+                   "title": "Short title (e.g. 'Dentist')",
+                   "description": "Full details (e.g. 'Bring insurance card, 123 Main St')",
+                   "year": 2025,
+                   "month": 1,
+                   "day": 1,
+                   "end_year": null (int, if range),
+                   "end_month": null,
+                   "end_day": null,
+                   "hour": 8,
+                   "minute": 0,
+                   "color_index": 0,
+                   "severity": "MEDIUM",
+                   "recurrence_type": null,
+                   "nag_enabled": false,
+                   "reminder_offsets": [0]
                 }
                 
                 COLOR MAPPING (Use these indices if a color is mentioned):
@@ -92,13 +100,21 @@ class AIService {
 
 @Serializable
 data class ParsedNote(
-    val text: String,
+    val title: String,
+    val description: String? = null,
     val year: Int? = null,
     val month: Int? = null,
     val day: Int? = null,
+    @SerialName("end_year") val endYear: Int? = null,
+    @SerialName("end_month") val endMonth: Int? = null,
+    @SerialName("end_day") val endDay: Int? = null,
     val hour: Int = 8,
     val minute: Int = 0,
-    @SerialName("color_index") val colorIndex: Int = 0
+    @SerialName("color_index") val colorIndex: Int = 0,
+    val severity: String? = null,
+    @SerialName("recurrence_type") val recurrenceType: String? = null,
+    @SerialName("nag_enabled") val nagEnabled: Boolean = false,
+    @SerialName("reminder_offsets") val reminderOffsets: List<Long> = emptyList()
 )
 
 @Serializable

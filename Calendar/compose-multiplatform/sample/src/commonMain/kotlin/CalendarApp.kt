@@ -1,5 +1,6 @@
 package com.kizitonwose.calendar.compose.multiplatform.sample
 
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items
@@ -10,6 +11,9 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.minus
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.Clock as KClock
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.atTime
 import kotlinx.coroutines.launch
 import androidx.compose.animation.*
@@ -92,7 +96,7 @@ enum class Tab { Calendar, Notes }
 enum class CalendarViewMode { Year, Month }
 
 @Composable
-fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean = false) {
+fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean = false, scheduler: ReminderScheduler? = null) {
     var screen by remember { mutableStateOf(Screen.Calendar) }
     var currentTab by remember { mutableStateOf(Tab.Calendar) }
     var viewMode by remember { mutableStateOf(CalendarViewMode.Month) }
@@ -146,9 +150,18 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
     }
     
     // Hoisted State for Manual View
-    var text by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var endDate by remember { mutableStateOf<LocalDate?>(null) }
     var selectedColor by remember { mutableStateOf(noteColors.first()) }
     var selectedTime by remember { mutableStateOf(LocalTime(8, 0)) }
+    
+    // New State for Reminders
+    var reminderOffsets by remember { mutableStateOf<List<Long>>(emptyList()) }
+    var severity by remember { mutableStateOf(Severity.MEDIUM) }
+    var recurrenceType by remember { mutableStateOf<String?>(null) }
+    var nagEnabled by remember { mutableStateOf(false) }
+    var editingNoteId by remember { mutableStateOf<Long?>(null) }
 
     when (screen) {
         Screen.Settings -> {
@@ -157,6 +170,27 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                 onApiKeyChange = { newKey ->
                     apiKey = newKey
                     dbHelper.saveApiKey(newKey)
+                },
+                onTestNotification = {
+                    val now = LocalDateTime(2026, 1, 4, 13, 30)
+                    // Schedule a dummy notification 5 seconds from now (or immediate)
+                    val dummyNote = CalendarNote(
+                        id = -999, // Dummy ID
+                        title = "Test Notification",
+                        description = "If you see this, notifications are working! Severity: HIGH",
+                        endDate = null,
+                        color = Color(0xFFFF0000), // Red
+                        time = now,
+                        isCompleted = false,
+                        recurrenceType = null,
+                        recurrenceRule = null,
+                        nagEnabled = false,
+                        lastCompletedAt = null,
+                        snoozedUntil = null,
+                        severity = Severity.HIGH,
+                        reminderOffsets = listOf(0) // Schedule for now
+                    )
+                    scheduler?.schedule(dummyNote)
                 },
                 onBack = { screen = Screen.Calendar }
             )
@@ -227,7 +261,6 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                                        if (currentTab == Tab.Notes) {
                                            coroutineScope.launch {
                                                dbHelper.insertQueue(magicText)
-                                               // Optional: Scroll to top of queue?
                                            }
                                        } else {
                                            isThinking = true
@@ -238,42 +271,42 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                                                    val result = aiService.parseNote(magicText, apiKey, today)
                                                    
                                                    if (result != null) {
+                                                       // 1. Extract Details
                                                        val colorIdx = result.colorIndex.coerceIn(0, 7)
                                                        val targetDate = if (result.year != null && result.month != null && result.day != null) {
                                                            LocalDate(result.year, result.month, result.day)
                                                        } else {
                                                            today
                                                        }
-                                                       val time = targetDate.atTime(result.hour, result.minute)
                                                        
-                                                       val note = CalendarNote(
-                                                           time = time,
-                                                           text = result.text,
-                                                           color = noteColors[colorIdx]
-                                                       )
-                                                       dbHelper.insert(note)
-                                                       val insertedId = dbHelper.getLastInsertedNoteId()
+                                                       // 2. Populate Editor State (Don't save yet!)
+                                                       title = result.title
+                                                       description = result.description ?: ""
                                                        
+                                                       if (result.endYear != null && result.endMonth != null && result.endDay != null) {
+                                                            endDate = LocalDate(result.endYear, result.endMonth, result.endDay)
+                                                       } else {
+                                                            endDate = null
+                                                       }
+                                                       
+                                                       selectedColor = noteColors[colorIdx]
+                                                       selectedTime = LocalTime(result.hour, result.minute)
+                                                       
+                                                       // New AI Fields
+                                                       severity = try { Severity.valueOf(result.severity ?: "MEDIUM") } catch(e: Exception) { Severity.MEDIUM }
+                                                       reminderOffsets = result.reminderOffsets
+                                                       recurrenceType = result.recurrenceType
+                                                       nagEnabled = result.nagEnabled
+                                                       
+                                                       // 3. Move Calendar & Open Sheet
                                                        selection = CalendarDay(targetDate, DayPosition.MonthDate)
-                                                       recentlyAddedDate = targetDate
-                                                       
                                                        val targetMonth = YearMonth(targetDate.year, targetDate.month)
                                                        if (targetMonth != state.firstVisibleMonth.yearMonth) {
                                                            state.animateScrollToMonth(targetMonth)
                                                        }
                                                        
-                                                       sheetMode = 0 
+                                                       sheetMode = 2 // Open Manual/Edit Sheet
                                                        
-                                                       val snackResult = snackbarHostState.showSnackbar(
-                                                           message = "Saved: ${result.text} ($targetDate)",
-                                                           actionLabel = "UNDO",
-                                                           duration = SnackbarDuration.Short
-                                                       )
-                                                       
-                                                       if (snackResult == SnackbarResult.ActionPerformed && insertedId != null) {
-                                                           dbHelper.deleteById(insertedId)
-                                                            snackbarHostState.showSnackbar("Note deleted")
-                                                       }
                                                    } else {
                                                        magicError = "Could not understand note."
                                                    }
@@ -470,7 +503,61 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                                 if (currentTab == Tab.Calendar) {
                                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                                         items(items = notesInSelectedDate.value) { note ->
-                                            NoteInformation(note, onDelete = { dbHelper.deleteById(note.id) })
+                                            Box(
+                                                modifier = Modifier
+                                                    .clickable {
+                                                        // Populate Editor for Editing
+                                                        title = note.title
+                                                        description = note.description ?: ""
+                                                        endDate = note.endDate?.date
+                                                        selectedTime = note.time.time
+                                                        selectedColor = note.color
+                                                        severity = note.severity
+                                                        reminderOffsets = note.reminderOffsets
+                                                        recurrenceType = note.recurrenceType
+                                                        nagEnabled = note.nagEnabled
+                                                        editingNoteId = note.id
+                                                        sheetMode = 2
+                                                    }
+                                            ) {
+                                                NoteInformation(
+                                                    note = note, 
+                                                    onDelete = { 
+                                                        dbHelper.deleteById(note.id)
+                                                        scheduler?.cancel(note)
+                                                    },
+                                                    onComplete = { isComplete ->
+                                                        dbHelper.updateCompletion(note.id, isComplete)
+                                                        if (isComplete) {
+                                                            scheduler?.cancel(note)
+                                                            
+                                                            // Handle Recurrence (Create next note)
+                                                            if (note.recurrenceType != null) {
+                                                                val nextDate = RecurrenceEngine.getNextDueDate(note)
+                                                                if (nextDate != null) {
+                                                                    val newNote = note.copy(
+                                                                        id = -1, // New ID
+                                                                        time = nextDate,
+                                                                        isCompleted = false,
+                                                                        lastCompletedAt = null // Reset for new instance
+                                                                    )
+                                                                    dbHelper.insert(newNote)
+                                                                    val newId = dbHelper.getLastInsertedNoteId()
+                                                                    if (newId != null) {
+                                                                        scheduler?.schedule(newNote.copy(id = newId))
+                                                                    }
+                                                                }
+                                                            }
+                                                        } else {
+                                                            // Un-completing? Schedule again if future?
+                                                            // Or if it was Nag, schedule again?
+                                                            if (note.nagEnabled || note.reminderOffsets.isNotEmpty()) {
+                                                                scheduler?.schedule(note)
+                                                            }
+                                                        }
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 } else {
@@ -507,184 +594,399 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                                              shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                                         )
                                         .clickable(enabled = false) {}
-                                        .padding(16.dp),
+                                        .padding(16.dp)
+                                        .verticalScroll(rememberScrollState()),
                                     verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                     AddNoteContent(
-                                         text = text,
-                                         onTextChange = { text = it },
-                                         selectedColor = selectedColor,
-                                         selectedTime = selectedTime,
-                                         onColorChange = { selectedColor = it },
-                                         onTimeChange = { selectedTime = it },
-                                         onAdd = {
-                                             val date = selection?.date ?: getToday()
-                                             val note = CalendarNote(time = date.atTime(selectedTime), text = text, color = selectedColor)
-                                             dbHelper.insert(note)
-                                             val insertedId = dbHelper.getLastInsertedNoteId()
-                                             
-                                             text = ""
-                                             sheetMode = 0
-                                             
-                                             if (selection == null) {
-                                                 selection = CalendarDay(date, DayPosition.MonthDate)
-                                             }
-                                             recentlyAddedDate = date
-                                             
-                                             val targetMonth = YearMonth(date.year, date.month)
-                                             coroutineScope.launch {
-                                                 if (targetMonth != state.firstVisibleMonth.yearMonth) {
-                                                     state.animateScrollToMonth(targetMonth)
-                                                 }
-                                                 val snackResult = snackbarHostState.showSnackbar(
-                                                     message = "Saved note for $date",
-                                                     actionLabel = "UNDO",
-                                                     duration = SnackbarDuration.Short
-                                                 )
-                                                 if (snackResult == SnackbarResult.ActionPerformed && insertedId != null) {
-                                                     dbHelper.deleteById(insertedId)
-                                                     snackbarHostState.showSnackbar("Note deleted")
-                                                 }
-                                             }
-                                         }
-                                     )
+                                      EditNoteSheet(
+                                          title = title,
+                                          onTitleChange = { title = it },
+                                          description = description,
+                                          onDescriptionChange = { description = it },
+                                          endDate = endDate,
+                                          onEndDateChange = { endDate = it },
+                                          selectedColor = selectedColor,
+                                          selectedTime = selectedTime,
+                                          onColorChange = { selectedColor = it },
+                                          onTimeChange = { selectedTime = it },
+                                          reminderOffsets = reminderOffsets,
+                                          recurrenceType = recurrenceType,
+                                          nagEnabled = nagEnabled,
+                                          severity = severity,
+                                          onReminderOffsetsChange = { reminderOffsets = it },
+                                          onRecurrenceTypeChange = { recurrenceType = it },
+                                          onNagEnabledChange = { nagEnabled = it },
+                                          onSeverityChange = { severity = it },
+                                          onSave = {
+                                              val date = selection?.date ?: getToday()
+                                              val note = CalendarNote(
+                                                  id = editingNoteId ?: -1L,
+                                                  time = date.atTime(selectedTime),
+                                                  title = title,
+                                                  description = description,
+                                                  endDate = endDate?.atTime(23, 59),
+                                                  color = selectedColor,
+                                                  reminderOffsets = reminderOffsets,
+                                                  recurrenceType = recurrenceType,
+                                                  nagEnabled = nagEnabled,
+                                                  severity = severity
+                                              )
+                                              
+                                              if (editingNoteId != null) {
+                                                  dbHelper.update(note)
+                                                  // TODO: Cancel old alarms? For now we just schedule new ones.
+                                              } else {
+                                                  dbHelper.insert(note)
+                                              }
+                                              
+                                              // For scheduling, we need the ID.
+                                              val finalId = if (editingNoteId != null) editingNoteId!! else dbHelper.getLastInsertedNoteId()
+                                              
+                                              // Schedule Reminder
+                                              if (finalId != null && reminderOffsets.isNotEmpty()) {
+                                                   scheduler?.schedule(note.copy(id = finalId))
+                                              }
+                                              
+                                              
+                                              title = ""
+                                              description = ""
+                                              endDate = null
+                                              reminderOffsets = emptyList()
+                                              recurrenceType = null
+                                              nagEnabled = false
+                                              severity = Severity.MEDIUM
+                                              editingNoteId = null // Reset Edit Mode
+                                              sheetMode = 0
+                                              
+                                              if (selection == null) {
+                                                  selection = CalendarDay(date, DayPosition.MonthDate)
+                                              }
+                                              recentlyAddedDate = date
+                                              
+                                              val targetMonth = YearMonth(date.year, date.month)
+                                              coroutineScope.launch {
+                                                  if (targetMonth != state.firstVisibleMonth.yearMonth) {
+                                                      state.animateScrollToMonth(targetMonth)
+                                                  }
+                                                  
+                                                  // No undo for update currently
+                                              }
+                                          }
+                                      )
                                 }
                             }
                         }
-            
+            }
 
             // Removed duplicate SnackbarHost from here as it is now in Scaffold
         }
     }
 }
-}
 
 @Composable
-private fun AddNoteContent(
-    text: String,
-    onTextChange: (String) -> Unit,
+private fun EditNoteSheet(
+    title: String,
+    onTitleChange: (String) -> Unit,
+    description: String,
+    onDescriptionChange: (String) -> Unit,
+    endDate: LocalDate?,
+    onEndDateChange: (LocalDate?) -> Unit,
     selectedColor: Color,
     selectedTime: LocalTime,
     onColorChange: (Color) -> Unit,
     onTimeChange: (LocalTime) -> Unit,
-    onAdd: () -> Unit,
+    reminderOffsets: List<Long>,
+    recurrenceType: String?,
+    nagEnabled: Boolean,
+    severity: Severity,
+    onReminderOffsetsChange: (List<Long>) -> Unit,
+    onRecurrenceTypeChange: (String?) -> Unit,
+    onNagEnabledChange: (Boolean) -> Unit,
+    onSeverityChange: (Severity) -> Unit,
+    onSave: () -> Unit
 ) {
     val timePresets = listOf(
         LocalTime(8, 0),
         LocalTime(12, 0),
-        LocalTime(15, 0)
+        LocalTime(15, 0),
+        LocalTime(18, 0),
+        LocalTime(20, 0)
     )
     val focusRequester = remember { FocusRequester() }
 
-    /* ... Speech Recognizer ... */
     val launchSpeech = rememberSpeechRecognizer { spokenText ->
-        val separator = if (text.isBlank()) "" else " "
-        onTextChange(text + separator + spokenText)
+        val separator = if (description.isBlank()) "" else " "
+        onDescriptionChange(description + separator + spokenText)
     }
- 
 
-    // Auto-focus logic still nice
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Stack Order: Option -> Option -> Input Row (Bottom Anchor) with Add Button
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.padding(bottom = 16.dp)
+    ) {
+        // Header
+        Text(
+            "Note Details", 
+            style = MaterialTheme.typography.titleLarge, 
+            color = Color.White,
+            fontWeight = FontWeight.Bold
+        )
 
-        // Time Selection - Presets
-        Text("Select Time", fontWeight = FontWeight.Medium)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+        // 1. Title Input
+        OutlinedTextField(
+            value = title,
+            onValueChange = onTitleChange,
+            label = { Text("Title", color = Color.White.copy(alpha = 0.7f)) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = Color.White,
+                focusedIndicatorColor = selectedColor,
+                unfocusedIndicatorColor = Color.Gray
+            ),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+        )
+        
+        // 2. Description Input
+        OutlinedTextField(
+            value = description,
+            onValueChange = onDescriptionChange,
+            label = { Text("Details", color = Color.White.copy(alpha = 0.7f)) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = Color.White,
+                focusedIndicatorColor = selectedColor,
+                unfocusedIndicatorColor = Color.Gray
+            ),
+            trailingIcon = {
+                 IconButton(onClick = { launchSpeech() }) {
+                     Icon(Icons.Filled.Mic, "Voice", tint = selectedColor)
+                 }
+            },
+            maxLines = 5
+        )
+
+        // 2. Time & Recurrence (When)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = itemBackgroundColor),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            timePresets.forEach { time ->
-                val isSelected = selectedTime == time
-                val label = when(time.hour) {
-                    8 -> "8 AM"
-                    12 -> "12 PM"
-                    15 -> "3 PM"
-                    else -> "${time.hour}:${time.minute}"
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AccessTime, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Time", color = Color.Gray, fontSize = 14.sp)
                 }
-                Button(
-                    onClick = { onTimeChange(time) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelected) selectedColor else itemBackgroundColor,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp)
+                
+                // Formatted Time Display (Ideally a picker, using Presets for now)
+                val formattedTime = "${selectedTime.hour}:${selectedTime.minute.toString().padStart(2, '0')}"
+                Text(formattedTime, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.horizontalScroll(rememberScrollState())
                 ) {
-                    Text(label, fontSize = 12.sp, maxLines = 1)
+                    timePresets.forEach { time ->
+                        val isSelected = selectedTime == time
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { onTimeChange(time) },
+                            label = { 
+                                val label = when(time.hour) {
+                                    8 -> "Morning"
+                                    12 -> "Noon"
+                                    15 -> "Afternoon"
+                                    18 -> "Evening"
+                                    20 -> "Night"
+                                    else -> "${time.hour}:${time.minute}"
+                                }
+                                Text(label) 
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = selectedColor,
+                                selectedLabelColor = Color.White,
+                                containerColor = Color.Black.copy(alpha = 0.3f),
+                                labelColor = Color.White
+                            )
+                        )
+                    }
+                }
+                
+                HorizontalDivider(color = Color.Gray.copy(alpha = 0.3f))
+                
+                // Recurrence
+                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Refresh, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Repeat: ${recurrenceType ?: "Never"}", color = Color.White)
+                    }
+                    
+                    var expanded by remember { mutableStateOf(false) }
+                    Box {
+                        TextButton(onClick = { expanded = true }) {
+                            Text("Change", color = selectedColor)
+                        }
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            listOf(null, "DAILY", "WEEKLY", "MONTHLY").forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(type?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Never") },
+                                    onClick = { 
+                                        onRecurrenceTypeChange(type)
+                                        expanded = false 
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // Color Selection
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+        // 3. Importance & Reminders (How)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = itemBackgroundColor),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            noteColors.forEach { color ->
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(color = color, shape = CircleShape)
-                        .clickable { onColorChange(color) }
-                        .border(
-                            width = if (selectedColor == color) 2.dp else 0.dp,
-                            color = Color.White,
-                            shape = CircleShape
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Notifications, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Notifications", color = Color.Gray, fontSize = 14.sp)
+                }
+
+                // Severity
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                     Severity.entries.forEach { level ->
+                         val isSelected = severity == level
+                         val (color, label) = when(level) {
+                             Severity.HIGH -> Color.Red to "High / Loud"
+                             Severity.MEDIUM -> Color.Yellow to "Medium"
+                             Severity.LOW -> Color.Blue to "Low / Silent"
+                         }
+                         
+                         FilterChip(
+                             selected = isSelected,
+                             onClick = { onSeverityChange(level) },
+                             label = { Text(level.name) },
+                             colors = FilterChipDefaults.filterChipColors(
+                                 selectedContainerColor = color.copy(alpha = 0.8f),
+                                 selectedLabelColor = Color.White,
+                                 containerColor = Color.Black.copy(alpha = 0.3f),
+                                 labelColor = Color.White
+                             ),
+                             modifier = Modifier.weight(1f)
+                         )
+                    }
+                }
+                
+                // Offsets
+                Text("Remind me:", color = Color.White, fontSize = 14.sp)
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                      val offsets = listOf(0L to "At time", 10L to "10m before", 30L to "30m", 60L to "1h", 1440L to "1d")
+                      offsets.forEach { (offset, label) ->
+                          val isSelected = reminderOffsets.contains(offset)
+                          FilterChip(
+                              selected = isSelected,
+                              onClick = { 
+                                  val newOffsets = if (isSelected) reminderOffsets - offset else reminderOffsets + offset
+                                  onReminderOffsetsChange(newOffsets)
+                              },
+                              label = { Text(label) },
+                              colors = FilterChipDefaults.filterChipColors(
+                                  selectedContainerColor = selectedColor,
+                                  selectedLabelColor = Color.White,
+                                  containerColor = Color.Black.copy(alpha = 0.3f),
+                                  labelColor = Color.White
+                              )
+                          )
+                      }
+                }
+                
+                // Nag
+                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Nagging Mode", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("Keep reminding until done", color = Color.Gray, fontSize = 12.sp)
+                    }
+                    Switch(
+                        checked = nagEnabled,
+                        onCheckedChange = onNagEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = selectedColor
                         )
-                )
+                    )
+                }
             }
         }
         
-        // Input Row (Anchor)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // 4. Look (Color)
+        Card(
+             colors = CardDefaults.cardColors(containerColor = itemBackgroundColor),
+             shape = RoundedCornerShape(12.dp)
         ) {
-             // Voice Input Button
-             IconButton(
-                 onClick = { launchSpeech() },
-                 modifier = Modifier.background(itemBackgroundColor, CircleShape)
-             ) {
-                 Icon(androidx.compose.material.icons.Icons.Filled.Mic, contentDescription = "Voice Input", tint = Color.White)
-             }
-
-             OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                label = { Text("Note", color = Color.White) },
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = { 
-                        if (text.isNotBlank()) onAdd() 
+             Column(modifier = Modifier.padding(12.dp)) {
+                Text("Color", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(bottom=8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    noteColors.forEach { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(color = color, shape = CircleShape)
+                                .clickable { onColorChange(color) }
+                                .border(
+                                    width = if (selectedColor == color) 2.dp else 0.dp,
+                                    color = Color.White,
+                                    shape = CircleShape
+                                )
+                        )
                     }
-                ),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = itemBackgroundColor,
-                    unfocusedContainerColor = itemBackgroundColor,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedIndicatorColor = selectedColor,
-                    unfocusedIndicatorColor = Color.Gray
-                )
-            )
-            
-            Button(
-                onClick = { if (text.isNotBlank()) onAdd() },
-                enabled = text.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = selectedColor),
-                modifier = Modifier.height(IntrinsicSize.Max) // Match height if possible or standard
-            ) {
-                 Text("Add")
-            }
+                }
+             }
+        }
+        
+        Spacer(Modifier.height(16.dp))
+
+        // Save Button (Big & Bottom)
+        Button(
+            onClick = onSave,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = selectedColor),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(Icons.Default.Check, null)
+            Spacer(Modifier.width(8.dp))
+            Text("Save Note", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -783,13 +1085,33 @@ private fun MonthHeader(
 }
 
 @Composable
-private fun LazyItemScope.NoteInformation(note: CalendarNote, onDelete: () -> Unit) {
+private fun LazyItemScope.NoteInformation(note: CalendarNote, onDelete: () -> Unit, onComplete: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillParentMaxWidth()
             .height(IntrinsicSize.Max),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // Checkbox for Completion
+        Box(
+            modifier = Modifier
+                .background(color = itemBackgroundColor)
+                .fillMaxHeight()
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Checkbox(
+                checked = note.isCompleted,
+                onCheckedChange = onComplete,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = note.color,
+                    uncheckedColor = Color.Gray,
+                    checkmarkColor = Color.White
+                )
+            )
+        }
+        
         Box(
             modifier = Modifier
                 .background(color = note.color)
@@ -808,7 +1130,7 @@ private fun LazyItemScope.NoteInformation(note: CalendarNote, onDelete: () -> Un
         }
         Box(
             modifier = Modifier
-                .background(color = itemBackgroundColor)
+                .background(color = if (note.isCompleted) itemBackgroundColor.copy(alpha = 0.5f) else itemBackgroundColor)
                 .weight(1f)
                 .fillMaxHeight()
                 .padding(8.dp),
@@ -816,9 +1138,10 @@ private fun LazyItemScope.NoteInformation(note: CalendarNote, onDelete: () -> Un
         ) {
             Text(
                 text = note.text,
-                color = Color.White,
+                color = if (note.isCompleted) Color.Gray else Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
+                textDecoration = if (note.isCompleted) TextDecoration.LineThrough else null
             )
         }
         // Delete Button

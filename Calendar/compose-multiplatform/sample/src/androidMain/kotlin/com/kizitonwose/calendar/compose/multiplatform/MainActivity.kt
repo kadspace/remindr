@@ -2,6 +2,7 @@ package com.kizitonwose.calendar.compose.multiplatform
 
 import App
 import com.kizitonwose.calendar.compose.multiplatform.sample.DatabaseDriverFactory
+import com.kizitonwose.calendar.compose.multiplatform.sample.AndroidReminderScheduler
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,9 +17,10 @@ class MainActivity : ComponentActivity() {
         val driverFactory = DatabaseDriverFactory(applicationContext)
         
         val requestMagicAdd = intent?.action == "ACTION_MAGIC_ADD"
+        val scheduler = AndroidReminderScheduler(this)
         
         setContent {
-            App(driverFactory, requestMagicAdd)
+            App(driverFactory, requestMagicAdd, scheduler)
         }
     }
 }

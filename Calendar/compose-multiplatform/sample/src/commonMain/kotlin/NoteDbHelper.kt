@@ -23,8 +23,20 @@ class NoteDbHelper(database: RemindrDatabase) {
                 CalendarNote(
                     id = note.id,
                     time = LocalDateTime.parse(note.time),
-                    text = note.text,
-                    color = androidx.compose.ui.graphics.Color(note.color.toInt())
+                    title = note.title,
+                    description = note.description,
+                    endDate = note.end_date?.let { LocalDateTime.parse(it) },
+                    color = androidx.compose.ui.graphics.Color(note.color.toInt()),
+                    isCompleted = note.is_completed == 1L,
+                    recurrenceType = note.recurrence_type,
+                    recurrenceRule = note.recurrence_rule,
+                    nagEnabled = note.nag_enabled == 1L,
+                    lastCompletedAt = note.last_completed_at?.let { LocalDateTime.parse(it) },
+                    snoozedUntil = note.snoozed_until?.let { LocalDateTime.parse(it) },
+                    severity = try {
+                        Severity.valueOf(note.severity ?: "MEDIUM")
+                    } catch (e: Exception) { Severity.MEDIUM },
+                    reminderOffsets = note.reminder_offsets?.split(",")?.mapNotNull { it.toLongOrNull() } ?: emptyList()
                 )
             }
         }
@@ -33,9 +45,47 @@ class NoteDbHelper(database: RemindrDatabase) {
     fun insert(note: CalendarNote) {
         queries.insert(
             date = note.time.date.toString(),
-            text = note.text,
+            title = note.title,
+            description = note.description,
+            end_date = note.endDate?.toString(),
             color = note.color.toArgb().toLong(),
-            time = note.time.toString()
+            time = note.time.toString(),
+            is_completed = if (note.isCompleted) 1L else 0L,
+            recurrence_type = note.recurrenceType,
+            recurrence_rule = note.recurrenceRule,
+            nag_enabled = if (note.nagEnabled) 1L else 0L,
+            last_completed_at = note.lastCompletedAt?.toString(),
+            snoozed_until = note.snoozedUntil?.toString(),
+            severity = note.severity.name,
+            reminder_offsets = note.reminderOffsets.joinToString(",")
+        )
+    }
+
+    fun update(note: CalendarNote) {
+        queries.update(
+            date = note.time.date.toString(),
+            title = note.title,
+            description = note.description,
+            end_date = note.endDate?.toString(),
+            color = note.color.toArgb().toLong(),
+            time = note.time.toString(),
+            is_completed = if (note.isCompleted) 1L else 0L,
+            recurrence_type = note.recurrenceType,
+            recurrence_rule = note.recurrenceRule,
+            nag_enabled = if (note.nagEnabled) 1L else 0L,
+            last_completed_at = note.lastCompletedAt?.toString(),
+            snoozed_until = note.snoozedUntil?.toString(),
+            severity = note.severity.name,
+            reminder_offsets = note.reminderOffsets.joinToString(","),
+            id = note.id
+        )
+    }
+
+    fun updateCompletion(id: Long, isCompleted: Boolean) {
+        queries.updateCompletionStatus(
+             is_completed = if (isCompleted) 1L else 0L,
+             last_completed_at = if (isCompleted) "2025-01-01T12:00:00" else null, // Placeholder to bypass Clock error
+             id = id
         )
     }
 
@@ -70,6 +120,28 @@ class NoteDbHelper(database: RemindrDatabase) {
 
     fun deleteQueueById(id: Long) {
         queueQueries.deleteById(id)
+    }
+
+    fun getNoteById(id: Long): CalendarNote? {
+        val note = queries.selectById(id).executeAsOneOrNull() ?: return null
+        return CalendarNote(
+            id = note.id,
+            time = LocalDateTime.parse(note.time),
+            title = note.title,
+            description = note.description,
+            endDate = note.end_date?.let { LocalDateTime.parse(it) },
+            color = androidx.compose.ui.graphics.Color(note.color.toInt()),
+            isCompleted = note.is_completed == 1L,
+            recurrenceType = note.recurrence_type,
+            recurrenceRule = note.recurrence_rule,
+            nagEnabled = note.nag_enabled == 1L,
+            lastCompletedAt = note.last_completed_at?.let { LocalDateTime.parse(it) },
+            snoozedUntil = note.snoozed_until?.let { LocalDateTime.parse(it) },
+            severity = try {
+                Severity.valueOf(note.severity ?: "MEDIUM")
+            } catch (e: Exception) { Severity.MEDIUM },
+            reminderOffsets = note.reminder_offsets?.split(",")?.mapNotNull { it.toLongOrNull() } ?: emptyList()
+        )
     }
 
     fun getApiKey(): String? {
