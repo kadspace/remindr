@@ -7,8 +7,13 @@ import com.kizitonwose.calendar.compose.multiplatform.sample.ReminderScheduler
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun App(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean = false, scheduler: ReminderScheduler? = null) {
+fun App(
+    driverFactory: DatabaseDriverFactory,
+    requestMagicAdd: Boolean = false,
+    scheduler: ReminderScheduler? = null,
+    onRequestNotificationTest: ((String) -> Unit) -> Unit = {}
+) {
     MaterialTheme(SampleColorScheme) {
-        CalendarApp(driverFactory, requestMagicAdd, scheduler)
+        CalendarApp(driverFactory, requestMagicAdd, scheduler, onRequestNotificationTest)
     }
 }

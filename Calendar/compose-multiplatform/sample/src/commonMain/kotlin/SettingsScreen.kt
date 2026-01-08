@@ -11,6 +11,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +33,7 @@ fun SettingsScreen(
     apiKey: String,
     onApiKeyChange: (String) -> Unit,
     onTestNotification: () -> Unit,
+    logs: String,
     onBack: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
@@ -136,7 +139,6 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                          onTestNotification()
-                         scope.launch { snackbarHostState.showSnackbar("Scheduled for 1:30 PM (Jan 4)") }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
@@ -145,6 +147,25 @@ fun SettingsScreen(
                     )
                 ) {
                     Text("Trigger Test Notification")
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .padding(8.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = logs,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = Color.White,
+                        fontSize = 10.sp
+                    )
                 }
             }
             

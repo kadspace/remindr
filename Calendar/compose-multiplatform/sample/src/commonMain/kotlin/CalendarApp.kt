@@ -96,7 +96,12 @@ enum class Tab { Calendar, Notes }
 enum class CalendarViewMode { Year, Month }
 
 @Composable
-fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean = false, scheduler: ReminderScheduler? = null) {
+fun CalendarApp(
+    driverFactory: DatabaseDriverFactory,
+    requestMagicAdd: Boolean = false,
+    scheduler: ReminderScheduler? = null,
+    onRequestNotificationTest: ((String) -> Unit) -> Unit
+) {
     var screen by remember { mutableStateOf(Screen.Calendar) }
     var currentTab by remember { mutableStateOf(Tab.Calendar) }
     var viewMode by remember { mutableStateOf(CalendarViewMode.Month) }
@@ -163,6 +168,9 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
     var nagEnabled by remember { mutableStateOf(false) }
     var editingNoteId by remember { mutableStateOf<Long?>(null) }
 
+    // Logs state
+    var debugLogs by remember { mutableStateOf("Logs will appear here...\n") }
+
     when (screen) {
         Screen.Settings -> {
             SettingsScreen(
@@ -172,26 +180,11 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
                     dbHelper.saveApiKey(newKey)
                 },
                 onTestNotification = {
-                    val now = LocalDateTime(2026, 1, 4, 13, 30)
-                    // Schedule a dummy notification 5 seconds from now (or immediate)
-                    val dummyNote = CalendarNote(
-                        id = -999, // Dummy ID
-                        title = "Test Notification",
-                        description = "If you see this, notifications are working! Severity: HIGH",
-                        endDate = null,
-                        color = Color(0xFFFF0000), // Red
-                        time = now,
-                        isCompleted = false,
-                        recurrenceType = null,
-                        recurrenceRule = null,
-                        nagEnabled = false,
-                        lastCompletedAt = null,
-                        snoozedUntil = null,
-                        severity = Severity.HIGH,
-                        reminderOffsets = listOf(0) // Schedule for now
-                    )
-                    scheduler?.schedule(dummyNote)
+                    onRequestNotificationTest { message ->
+                        debugLogs += "${java.time.LocalTime.now()}: $message\n"
+                    }
                 },
+                logs = debugLogs,
                 onBack = { screen = Screen.Calendar }
             )
         }
@@ -201,7 +194,6 @@ fun CalendarApp(driverFactory: DatabaseDriverFactory, requestMagicAdd: Boolean =
             val aiService = remember { AIService() }
             var isThinking by remember { mutableStateOf(false) }
             var magicError by remember { mutableStateOf<String?>(null) }
-            var debugLogs by remember { mutableStateOf("") }
 
             val state = rememberCalendarState(
                 startMonth = startMonth,
