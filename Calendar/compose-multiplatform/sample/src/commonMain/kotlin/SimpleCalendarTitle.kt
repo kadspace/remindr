@@ -39,6 +39,7 @@ fun SimpleCalendarTitle(
     goToPrevious: () -> Unit,
     goToNext: () -> Unit,
     onSettingsClick: (() -> Unit)? = null,
+    onTitleClick: () -> Unit,
 ) {
     Row(
         modifier = modifier.height(40.dp),
@@ -53,11 +54,13 @@ fun SimpleCalendarTitle(
         Text(
             modifier = Modifier
                 .weight(1f)
-                .testTag("MonthTitle"),
+                .testTag("MonthTitle")
+                .clickable(role = Role.Button, onClick = onTitleClick),
             text = currentMonth.displayText(),
             fontSize = 22.sp,
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.Medium,
+            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
         )
         CalendarNavigationIcon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,

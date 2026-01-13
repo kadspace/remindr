@@ -11,9 +11,10 @@ fun App(
     driverFactory: DatabaseDriverFactory,
     requestMagicAdd: Boolean = false,
     scheduler: ReminderScheduler? = null,
-    onRequestNotificationTest: ((String) -> Unit) -> Unit = {}
+    onRequestNotificationTest: ((String) -> Unit) -> Unit = {},
+    onRequestRichNotificationTest: ((String) -> Unit) -> Unit = {}
 ) {
     MaterialTheme(SampleColorScheme) {
-        CalendarApp(driverFactory, requestMagicAdd, scheduler, onRequestNotificationTest)
+        CalendarApp(driverFactory, requestMagicAdd, scheduler, onRequestNotificationTest, onRequestRichNotificationTest)
     }
 }

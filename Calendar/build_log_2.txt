@@ -6,9 +6,6 @@
 > Task :buildSrc:processResources NO-SOURCE
 > Task :buildSrc:classes UP-TO-DATE
 > Task :buildSrc:jar UP-TO-DATE
-[=========                              ] 25%                                   > Task :compose-multiplatform:sample:preBuild UP-TO-DATE
-> Task :compose-multiplatform:sample:preDebugBuild UP-TO-DATE
-> Task :compose-multiplatform:sample:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :compose-multiplatform:library:kmpPartiallyResolvedDependenciesChecker
 > Task :compose-multiplatform:library:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :compose-multiplatform:library:convertXmlValueResourcesForAndroidMain NO-SOURCE
@@ -45,15 +42,6 @@
 > Task :compose-multiplatform:library:writeDebugAarMetadata UP-TO-DATE
 > Task :compose-multiplatform:library:extractDeepLinksDebug UP-TO-DATE
 > Task :compose-multiplatform:library:processDebugManifest UP-TO-DATE
-> Task :compose-multiplatform:library:copyDebugComposeResourcesToAndroidAssets UP-TO-DATE
-> Task :compose-multiplatform:library:debugAssetsCopyForAGP NO-SOURCE
-> Task :compose-multiplatform:library:generateDebugAssets UP-TO-DATE
-> Task :compose-multiplatform:library:mergeDebugAssets UP-TO-DATE
-> Task :compose-multiplatform:library:bundleLibRuntimeToJarDebug UP-TO-DATE
-> Task :compose-multiplatform:library:processDebugJavaRes UP-TO-DATE
-> Task :compose-multiplatform:library:mergeDebugJniLibFolders UP-TO-DATE
-> Task :compose-multiplatform:library:mergeDebugNativeLibs NO-SOURCE
-> Task :compose-multiplatform:library:copyDebugJniLibsProjectOnly UP-TO-DATE
 > Task :compose-multiplatform:sample:kmpPartiallyResolvedDependenciesChecker
 > Task :compose-multiplatform:sample:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :compose-multiplatform:sample:convertXmlValueResourcesForAndroidMain NO-SOURCE
@@ -76,6 +64,8 @@
 > Task :compose-multiplatform:sample:copyNonXmlValueResourcesForAndroidDebug NO-SOURCE
 > Task :compose-multiplatform:sample:prepareComposeResourcesTaskForAndroidDebug NO-SOURCE
 > Task :compose-multiplatform:sample:generateResourceAccessorsForAndroidDebug NO-SOURCE
+> Task :compose-multiplatform:sample:preBuild UP-TO-DATE
+> Task :compose-multiplatform:sample:preDebugBuild UP-TO-DATE
 > Task :compose-multiplatform:sample:checkDebugAarMetadata UP-TO-DATE
 > Task :compose-multiplatform:sample:processDebugNavigationResources UP-TO-DATE
 > Task :compose-multiplatform:sample:compileDebugNavigationResources UP-TO-DATE
@@ -90,38 +80,31 @@
 > Task :compose-multiplatform:sample:processDebugManifest UP-TO-DATE
 > Task :compose-multiplatform:sample:processDebugManifestForPackage UP-TO-DATE
 > Task :compose-multiplatform:sample:processDebugResources UP-TO-DATE
-> Task :compose-multiplatform:sample:javaPreCompileDebug UP-TO-DATE
-> Task :compose-multiplatform:sample:copyDebugComposeResourcesToAndroidAssets UP-TO-DATE
-> Task :compose-multiplatform:sample:debugAssetsCopyForAGP NO-SOURCE
-> Task :compose-multiplatform:sample:generateDebugAssets UP-TO-DATE
-> Task :compose-multiplatform:sample:mergeDebugAssets UP-TO-DATE
-> Task :compose-multiplatform:sample:compressDebugAssets UP-TO-DATE
-> Task :compose-multiplatform:sample:desugarDebugFileDependencies UP-TO-DATE
-> Task :compose-multiplatform:sample:checkDebugDuplicateClasses UP-TO-DATE
-> Task :compose-multiplatform:sample:mergeExtDexDebug UP-TO-DATE
-> Task :compose-multiplatform:sample:mergeLibDexDebug UP-TO-DATE
-> Task :compose-multiplatform:sample:mergeDebugJniLibFolders UP-TO-DATE
-> Task :compose-multiplatform:sample:mergeDebugNativeLibs UP-TO-DATE
-> Task :compose-multiplatform:sample:stripDebugDebugSymbols UP-TO-DATE
-> Task :compose-multiplatform:sample:validateSigningDebug UP-TO-DATE
-> Task :compose-multiplatform:sample:writeDebugAppMetadata UP-TO-DATE
-> Task :compose-multiplatform:sample:writeDebugSigningConfigVersions UP-TO-DATE
 
-> Task :compose-multiplatform:sample:compileDebugKotlinAndroid
+> Task :compose-multiplatform:sample:compileDebugKotlinAndroid FAILED
 w: Argument "-Xsuppress-warning" is deprecated. Use "-Xwarning-level=NOTHING_TO_INLINE:disabled" instead
-w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/AIService.kt:89:16 Redundant creation of Json format. Creating instances for each usage can be slow.
-w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:120:8 'typealias Clock = Clock' is deprecated. This type is deprecated in favor of `kotlin.time.Clock`.
-w: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:656:29 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:296:71 Unresolved reference 'System'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:296:84 Unresolved reference 'toLocalDateTime'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:545:25 Incompatible types 'Screen' and 'Unit'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:638:70 Unresolved reference 'state'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:639:55 Unresolved reference 'state'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:648:26 Syntax error: Expecting '->'.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:653:5 Syntax error: Expecting a top level declaration.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:654:1 Syntax error: Expecting a top level declaration.
+e: file:///C:/Users/lycomp/Documents/_code/remindr_3/Calendar/compose-multiplatform/sample/src/commonMain/kotlin/CalendarApp.kt:655:1 Syntax error: Expecting a top level declaration.
 
-> Task :compose-multiplatform:sample:compileDebugJavaWithJavac NO-SOURCE
-> Task :compose-multiplatform:sample:dexBuilderDebug
-> Task :compose-multiplatform:sample:mergeDebugGlobalSynthetics UP-TO-DATE
-> Task :compose-multiplatform:sample:processDebugJavaRes UP-TO-DATE
-> Task :compose-multiplatform:sample:mergeDebugJavaResource UP-TO-DATE
-> Task :compose-multiplatform:sample:mergeProjectDexDebug
-> Task :compose-multiplatform:sample:packageDebug
-> Task :compose-multiplatform:sample:createDebugApkListingFileRedirect UP-TO-DATE
-> Task :compose-multiplatform:sample:assembleDebug
+FAILURE: Build failed with an exception.
 
-BUILD SUCCESSFUL in 1m 46s
-66 actionable tasks: 6 executed, 60 up-to-date
+* What went wrong:
+Execution failed for task ':compose-multiplatform:sample:compileDebugKotlinAndroid'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 5s
+39 actionable tasks: 3 executed, 36 up-to-date

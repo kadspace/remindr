@@ -12,7 +12,7 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.Clock as KClock
+
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.atTime
 import kotlinx.coroutines.launch
@@ -45,6 +45,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.zIndex
 // Removed java.time imports to fix type mismatch
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.Clock
+import kotlinx.datetime.toLocalDateTime
 
 import com.kizitonwose.calendar.compose.multiplatform.sample.rememberSpeechRecognizer
 import com.kizitonwose.calendar.sample.db.RemindrDatabase
@@ -94,18 +96,21 @@ enum class Screen {
 
 enum class Tab { Calendar, Notes }
 enum class CalendarViewMode { Year, Month }
+enum class MainScreen { Home, View }
 
 @Composable
 fun CalendarApp(
     driverFactory: DatabaseDriverFactory,
     requestMagicAdd: Boolean = false,
     scheduler: ReminderScheduler? = null,
-    onRequestNotificationTest: ((String) -> Unit) -> Unit
+    onRequestNotificationTest: ((String) -> Unit) -> Unit,
+    onRequestRichNotificationTest: ((String) -> Unit) -> Unit
 ) {
     var screen by remember { mutableStateOf(Screen.Calendar) }
     var currentTab by remember { mutableStateOf(Tab.Calendar) }
     var viewMode by remember { mutableStateOf(CalendarViewMode.Month) }
-    
+    var showAddDialog by remember { mutableStateOf(false) }
+
     val coroutineScope = rememberCoroutineScope()
     // Database Init
     val database = remember { RemindrDatabase(driverFactory.createDriver()) }
@@ -184,6 +189,11 @@ fun CalendarApp(
                         debugLogs += "${java.time.LocalTime.now()}: $message\n"
                     }
                 },
+                onRichTestNotification = {
+                    onRequestRichNotificationTest { message ->
+                        debugLogs += "${java.time.LocalTime.now()}: $message\n"
+                    }
+                },
                 logs = debugLogs,
                 onBack = { screen = Screen.Calendar }
             )
@@ -232,89 +242,187 @@ fun CalendarApp(
                                         state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.next)
                                     }
                                 },
-                                onSettingsClick = { screen = Screen.Settings }
+                                onSettingsClick = { screen = Screen.Settings },
+                                onTitleClick = { viewMode = if (viewMode == CalendarViewMode.Month) CalendarViewMode.Year else CalendarViewMode.Month }
                             )
                         }
                     },
                     bottomBar = {
-                        if (sheetMode == 0 || sheetMode == 1) {
-                            Box(
+                        // 1. Bottom Control Row (Switcher + Input)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(pageBackgroundColor)
+                                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)) // Lift above keyboard AND Nav Bar
+                                .animateContentSize() // Smooth keyboard transition
+                        ) {
+                            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+                            
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(pageBackgroundColor)
-                                    .navigationBarsPadding()
-                                    .imePadding() // Key for keyboard
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                MagicInputContent(
-                                   error = magicError,
-                                   isLoading = isThinking,
-                                   onSwitchToManual = { sheetMode = 2 },
-                                   onConfirm = { magicText ->
-                                       if (currentTab == Tab.Notes) {
-                                           coroutineScope.launch {
-                                               dbHelper.insertQueue(magicText)
-                                           }
-                                       } else {
-                                           isThinking = true
-                                           magicError = null
-                                           coroutineScope.launch {
-                                               try {
-                                                   val today = getToday()
-                                                   val result = aiService.parseNote(magicText, apiKey, today)
-                                                   
-                                                   if (result != null) {
-                                                       // 1. Extract Details
-                                                       val colorIdx = result.colorIndex.coerceIn(0, 7)
-                                                       val targetDate = if (result.year != null && result.month != null && result.day != null) {
-                                                           LocalDate(result.year, result.month, result.day)
-                                                       } else {
-                                                           today
-                                                       }
-                                                       
-                                                       // 2. Populate Editor State (Don't save yet!)
-                                                       title = result.title
-                                                       description = result.description ?: ""
-                                                       
-                                                       if (result.endYear != null && result.endMonth != null && result.endDay != null) {
-                                                            endDate = LocalDate(result.endYear, result.endMonth, result.endDay)
-                                                       } else {
-                                                            endDate = null
-                                                       }
-                                                       
-                                                       selectedColor = noteColors[colorIdx]
-                                                       selectedTime = LocalTime(result.hour, result.minute)
-                                                       
-                                                       // New AI Fields
-                                                       severity = try { Severity.valueOf(result.severity ?: "MEDIUM") } catch(e: Exception) { Severity.MEDIUM }
-                                                       reminderOffsets = result.reminderOffsets
-                                                       recurrenceType = result.recurrenceType
-                                                       nagEnabled = result.nagEnabled
-                                                       
-                                                       // 3. Move Calendar & Open Sheet
-                                                       selection = CalendarDay(targetDate, DayPosition.MonthDate)
-                                                       val targetMonth = YearMonth(targetDate.year, targetDate.month)
-                                                       if (targetMonth != state.firstVisibleMonth.yearMonth) {
-                                                           state.animateScrollToMonth(targetMonth)
-                                                       }
-                                                       
-                                                       sheetMode = 2 // Open Manual/Edit Sheet
-                                                       
-                                                   } else {
-                                                       magicError = "Could not understand note."
-                                                   }
-                                               } catch (e: Exception) {
-                                                   e.printStackTrace()
-                                                   magicError = "Error: ${e.message ?: e.toString()}"
-                                               } finally {
-                                                   isThinking = false
-                                               }
-                                           }
-                                       }
-                                   }
-                               )
+                                // A. View Switcher (Radio Style)
+                                Row(
+                                    modifier = Modifier
+                                       .background(Color(0xFF333333), RoundedCornerShape(20.dp))
+                                       .padding(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    // Calendar Icon
+                                    IconButton(
+                                        onClick = { currentTab = Tab.Calendar },
+                                        modifier = Modifier
+                                           .size(36.dp)
+                                           .background(
+                                               if (currentTab == Tab.Calendar) MaterialTheme.colorScheme.primary else Color.Transparent, 
+                                               CircleShape
+                                           )
+                                    ) {
+                                        Icon(Icons.Default.DateRange, "Calendar", tint = Color.White, modifier = Modifier.size(20.dp))
+                                    }
+                                    
+                                    // List Icon
+                                    IconButton(
+                                        onClick = { currentTab = Tab.Notes },
+                                        modifier = Modifier
+                                           .size(36.dp)
+                                           .background(
+                                               if (currentTab == Tab.Notes) MaterialTheme.colorScheme.primary else Color.Transparent, 
+                                               CircleShape
+                                           )
+                                    ) {
+                                        Icon(Icons.Default.Menu, "Notes", tint = Color.White, modifier = Modifier.size(20.dp))
+                                    }
+                                }
+
+                                // B. Persistent Input Bar
+                                var inputText by remember { mutableStateOf("") }
+                                var isSaving by remember { mutableStateOf(false) } // Loading state
+
+                                OutlinedTextField(
+                                    value = inputText,
+                                    onValueChange = { inputText = it },
+                                    placeholder = { 
+                                        Text(
+                                            if (currentTab == Tab.Calendar) "New Reminder..." else "New Note...", 
+                                            color = Color.Gray, 
+                                            fontSize = 14.sp
+                                        ) 
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 40.dp, max = 100.dp), // Grows slightly
+                                    shape = RoundedCornerShape(24.dp),
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFF1E1E1E),
+                                        unfocusedContainerColor = Color(0xFF1E1E1E),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent
+                                    ),
+                                    trailingIcon = {
+                                        if (isSaving) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                color = MaterialTheme.colorScheme.primary,
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else if (inputText.isNotBlank()) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (isSaving) return@IconButton // Debounce Double-Tap
+                                                    isSaving = true
+                                                    coroutineScope.launch {
+                                                        try {
+                                                            debugLogs += "${getFormattedTime()}: Requesting AI for: '$inputText'\n"
+                                                            
+                                                            // Save Logic
+                                                            if (currentTab == Tab.Calendar) {
+                                                                // AI Parsing for Reminder
+                                                                val today = getToday()
+                                                                var parsedNote: ParsedNote? = null
+                                                                
+                                                                // Attempt AI Parse
+                                                                if (apiKey.isNotBlank()) {
+                                                                    try {
+                                                                        parsedNote = aiService.parseNote(inputText, apiKey, today)
+                                                                        debugLogs += "${getFormattedTime()}: AI Response: $parsedNote\n"
+                                                                    } catch (e: Exception) {
+                                                                        debugLogs += "${getFormattedTime()}: AI Error: ${e.message}\n"
+                                                                        println("AI Parsing Failed: ${e.message}")
+                                                                    }
+                                                                } else {
+                                                                    debugLogs += "${getFormattedTime()}: No API Key found.\n"
+                                                                }
+
+                                                                // Use Parsed or Fallback
+                                                                val title = parsedNote?.title ?: "Reminder"
+                                                                val desc = parsedNote?.description ?: inputText
+                                                                val noteDate = if (parsedNote?.year != null) {
+                                                                    LocalDate(parsedNote.year, parsedNote.month!!, parsedNote.day!!)
+                                                                } else {
+                                                                    today
+                                                                }
+                                                                val noteTime = if (parsedNote != null) LocalTime(parsedNote.hour, parsedNote.minute) else LocalTime(12, 0)
+                                                                
+                                                                val newNote = CalendarNote(
+                                                                    id = -1L,
+                                                                    title = title,
+                                                                    description = desc,
+                                                                    time = noteDate.atTime(noteTime),
+                                                                    endDate = null,
+                                                                    color = if (parsedNote != null) noteColors.getOrElse(parsedNote.colorIndex) { Colors.accent } else Colors.accent,
+                                                                    isCompleted = false,
+                                                                    recurrenceType = parsedNote?.recurrenceType,
+                                                                    recurrenceRule = null,
+                                                                    nagEnabled = parsedNote?.nagEnabled ?: false,
+                                                                    lastCompletedAt = null,
+                                                                    snoozedUntil = null,
+                                                                    severity = if (parsedNote?.severity != null) Severity.valueOf(parsedNote.severity) else Severity.MEDIUM,
+                                                                    reminderOffsets = parsedNote?.reminderOffsets ?: listOf(0L)
+                                                                )
+                                                                
+                                                                if (parsedNote == null) {
+                                                                     debugLogs += "${getFormattedTime()}: Using Fallback (Today/Raw Text)\n"
+                                                                }
+                                                                
+                                                                dbHelper.insert(newNote)
+                                                                debugLogs += "${getFormattedTime()}: Inserted Note ID at $noteDate\n"
+                                                                
+                                                                // Jump to date
+                                                                selection = CalendarDay(noteDate, DayPosition.MonthDate)
+                                                                val targetMonth = YearMonth(noteDate.year, noteDate.month)
+                                                                if (targetMonth != state.firstVisibleMonth.yearMonth) {
+                                                                     state.animateScrollToMonth(targetMonth)
+                                                                }
+
+                                                            } else {
+                                                                // Note Logic
+                                                                dbHelper.insertQueue(inputText)
+                                                                currentTab = Tab.Notes
+                                                                debugLogs += "${getFormattedTime()}: Added to Note Queue\n" 
+                                                            }
+                                                            inputText = "" // Clear
+                                                        } finally {
+                                                            isSaving = false
+                                                        }
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(Icons.Default.ArrowForward, "Save", tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    }
+                                )
                             }
                         }
                     },
+
                     snackbarHost = {
                         SnackbarHost(
                             hostState = snackbarHostState,
@@ -324,41 +432,18 @@ fun CalendarApp(
                         )
                     }
                 ) { innerPadding ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .applyScaffoldHorizontalPaddingsLocal()
-                    ) {
+                     // ALWAYS SHOW CALENDAR
+                     Column(
+                          modifier = Modifier
+                              .fillMaxSize()
+                              .padding(innerPadding)
+                              .applyScaffoldHorizontalPaddingsLocal()
+                     ) {
+                         // Content moved here
+
                         
                         CompositionLocalProvider(LocalContentColor provides Color.White) {
-                            // View Mode Switcher
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                val modes = CalendarViewMode.values()
-                                modes.forEach { mode ->
-                                    val isSelected = viewMode == mode
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(horizontal = 4.dp)
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(if (isSelected) selectedItemColor else Color.Transparent)
-                                            .clickable { viewMode = mode }
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = mode.name,
-                                            fontSize = 14.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) Color.White else inActiveTextColor
-                                        )
-                                    }
-                                }
-                            }
+                            // View Mode Switcher Removed
 
                             AnimatedContent(
                                 targetState = viewMode,
@@ -455,39 +540,7 @@ fun CalendarApp(
                             }
 
                             
-                            // Tab Switcher
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Button(
-                                    onClick = { currentTab = Tab.Calendar },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (currentTab == Tab.Calendar) selectedItemColor else Color.Transparent,
-                                        contentColor = if (currentTab == Tab.Calendar) Color.White else inActiveTextColor
-                                    ),
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.height(32.dp),
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
-                                ) {
-                                    Text("Calendar", fontSize = 12.sp)
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Button(
-                                    onClick = { currentTab = Tab.Notes },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (currentTab == Tab.Notes) selectedItemColor else Color.Transparent,
-                                        contentColor = if (currentTab == Tab.Notes) Color.White else inActiveTextColor
-                                    ),
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.height(32.dp),
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
-                                ) {
-                                    Text("Notes", fontSize = 12.sp)
-                                }
-                            }
+
 
                             HorizontalDivider(color = pageBackgroundColor)
                             
@@ -561,8 +614,21 @@ fun CalendarApp(
                                 }
                             }
                         }
-                    }
-                }
+
+
+                        }
+                     } // End Main Column
+                     
+
+
+                     
+
+                  } // End Scaffold Content Scope
+
+
+
+
+
                         // Manual Overlay Sheet
                         AnimatedVisibility(
                             visible = sheetMode == 2,
@@ -671,7 +737,6 @@ fun CalendarApp(
             }
 
             // Removed duplicate SnackbarHost from here as it is now in Scaffold
-        }
     }
 }
 
@@ -1341,4 +1406,9 @@ private fun YearMonth.displayText(): String {
 private fun kotlinx.datetime.DayOfWeek.displayText(uppercase: Boolean = false): String {
     val name = this.name.lowercase().replaceFirstChar { it.uppercase() }
     return if (uppercase) name.take(3).uppercase() else name.take(3)
+}
+
+// Helper for logging
+fun getFormattedTime(): String {
+    return "LOG" 
 }

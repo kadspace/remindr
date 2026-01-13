@@ -26,6 +26,7 @@
         </activity>
 
         <receiver android:name=".sample.ReminderReceiver" android:exported="false" />
+        <receiver android:name="com.kizitonwose.calendar.compose.multiplatform.sample.NotificationActionReceiver" android:exported="true" />
 
     </application>
 

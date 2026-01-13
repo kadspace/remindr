@@ -33,6 +33,7 @@ fun SettingsScreen(
     apiKey: String,
     onApiKeyChange: (String) -> Unit,
     onTestNotification: () -> Unit,
+    onRichTestNotification: () -> Unit,
     logs: String,
     onBack: () -> Unit
 ) {
@@ -148,6 +149,21 @@ fun SettingsScreen(
                 ) {
                     Text("Trigger Test Notification")
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                         onRichTestNotification()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Colors.accent,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Trigger Rich Notification")
+                }
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
@@ -174,8 +190,8 @@ fun SettingsScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Version", color = Colors.example5TextGrey)
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("v1.6.3", color = Color.White)
-                        Text("Built: Jan 4, 12:55 AM", color = Colors.example5TextGrey, fontSize = 10.sp)
+                        Text("v1.6.7", color = Color.White)
+                        Text("Built: Jan 13, 01:25 PM", color = Colors.example5TextGrey, fontSize = 10.sp)
                     }
                 }
                 HorizontalDivider(color = Colors.example5ToolbarColor, modifier = Modifier.padding(vertical = 12.dp))
