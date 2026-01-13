@@ -247,182 +247,6 @@ fun CalendarApp(
                             )
                         }
                     },
-                    bottomBar = {
-                        // 1. Bottom Control Row (Switcher + Input)
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(pageBackgroundColor)
-                                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)) // Lift above keyboard AND Nav Bar
-                                .animateContentSize() // Smooth keyboard transition
-                        ) {
-                            HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
-                            
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // A. View Switcher (Radio Style)
-                                Row(
-                                    modifier = Modifier
-                                       .background(Color(0xFF333333), RoundedCornerShape(20.dp))
-                                       .padding(4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    // Calendar Icon
-                                    IconButton(
-                                        onClick = { currentTab = Tab.Calendar },
-                                        modifier = Modifier
-                                           .size(36.dp)
-                                           .background(
-                                               if (currentTab == Tab.Calendar) MaterialTheme.colorScheme.primary else Color.Transparent, 
-                                               CircleShape
-                                           )
-                                    ) {
-                                        Icon(Icons.Default.DateRange, "Calendar", tint = Color.White, modifier = Modifier.size(20.dp))
-                                    }
-                                    
-                                    // List Icon
-                                    IconButton(
-                                        onClick = { currentTab = Tab.Notes },
-                                        modifier = Modifier
-                                           .size(36.dp)
-                                           .background(
-                                               if (currentTab == Tab.Notes) MaterialTheme.colorScheme.primary else Color.Transparent, 
-                                               CircleShape
-                                           )
-                                    ) {
-                                        Icon(Icons.Default.Menu, "Notes", tint = Color.White, modifier = Modifier.size(20.dp))
-                                    }
-                                }
-
-                                // B. Persistent Input Bar
-                                var inputText by remember { mutableStateOf("") }
-                                var isSaving by remember { mutableStateOf(false) } // Loading state
-
-                                OutlinedTextField(
-                                    value = inputText,
-                                    onValueChange = { inputText = it },
-                                    placeholder = { 
-                                        Text(
-                                            if (currentTab == Tab.Calendar) "New Reminder..." else "New Note...", 
-                                            color = Color.Gray, 
-                                            fontSize = 14.sp
-                                        ) 
-                                    },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .heightIn(min = 40.dp, max = 100.dp), // Grows slightly
-                                    shape = RoundedCornerShape(24.dp),
-                                    colors = TextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF1E1E1E),
-                                        unfocusedContainerColor = Color(0xFF1E1E1E),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedIndicatorColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent
-                                    ),
-                                    trailingIcon = {
-                                        if (isSaving) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                strokeWidth = 2.dp
-                                            )
-                                        } else if (inputText.isNotBlank()) {
-                                            IconButton(
-                                                onClick = {
-                                                    if (isSaving) return@IconButton // Debounce Double-Tap
-                                                    isSaving = true
-                                                    coroutineScope.launch {
-                                                        try {
-                                                            debugLogs += "${getFormattedTime()}: Requesting AI for: '$inputText'\n"
-                                                            
-                                                            // Save Logic
-                                                            if (currentTab == Tab.Calendar) {
-                                                                // AI Parsing for Reminder
-                                                                val today = getToday()
-                                                                var parsedNote: ParsedNote? = null
-                                                                
-                                                                // Attempt AI Parse
-                                                                if (apiKey.isNotBlank()) {
-                                                                    try {
-                                                                        parsedNote = aiService.parseNote(inputText, apiKey, today)
-                                                                        debugLogs += "${getFormattedTime()}: AI Response: $parsedNote\n"
-                                                                    } catch (e: Exception) {
-                                                                        debugLogs += "${getFormattedTime()}: AI Error: ${e.message}\n"
-                                                                        println("AI Parsing Failed: ${e.message}")
-                                                                    }
-                                                                } else {
-                                                                    debugLogs += "${getFormattedTime()}: No API Key found.\n"
-                                                                }
-
-                                                                // Use Parsed or Fallback
-                                                                val title = parsedNote?.title ?: "Reminder"
-                                                                val desc = parsedNote?.description ?: inputText
-                                                                val noteDate = if (parsedNote?.year != null) {
-                                                                    LocalDate(parsedNote.year, parsedNote.month!!, parsedNote.day!!)
-                                                                } else {
-                                                                    today
-                                                                }
-                                                                val noteTime = if (parsedNote != null) LocalTime(parsedNote.hour, parsedNote.minute) else LocalTime(12, 0)
-                                                                
-                                                                val newNote = CalendarNote(
-                                                                    id = -1L,
-                                                                    title = title,
-                                                                    description = desc,
-                                                                    time = noteDate.atTime(noteTime),
-                                                                    endDate = null,
-                                                                    color = if (parsedNote != null) noteColors.getOrElse(parsedNote.colorIndex) { Colors.accent } else Colors.accent,
-                                                                    isCompleted = false,
-                                                                    recurrenceType = parsedNote?.recurrenceType,
-                                                                    recurrenceRule = null,
-                                                                    nagEnabled = parsedNote?.nagEnabled ?: false,
-                                                                    lastCompletedAt = null,
-                                                                    snoozedUntil = null,
-                                                                    severity = if (parsedNote?.severity != null) Severity.valueOf(parsedNote.severity) else Severity.MEDIUM,
-                                                                    reminderOffsets = parsedNote?.reminderOffsets ?: listOf(0L)
-                                                                )
-                                                                
-                                                                if (parsedNote == null) {
-                                                                     debugLogs += "${getFormattedTime()}: Using Fallback (Today/Raw Text)\n"
-                                                                }
-                                                                
-                                                                dbHelper.insert(newNote)
-                                                                debugLogs += "${getFormattedTime()}: Inserted Note ID at $noteDate\n"
-                                                                
-                                                                // Jump to date
-                                                                selection = CalendarDay(noteDate, DayPosition.MonthDate)
-                                                                val targetMonth = YearMonth(noteDate.year, noteDate.month)
-                                                                if (targetMonth != state.firstVisibleMonth.yearMonth) {
-                                                                     state.animateScrollToMonth(targetMonth)
-                                                                }
-
-                                                            } else {
-                                                                // Note Logic
-                                                                dbHelper.insertQueue(inputText)
-                                                                currentTab = Tab.Notes
-                                                                debugLogs += "${getFormattedTime()}: Added to Note Queue\n" 
-                                                            }
-                                                            inputText = "" // Clear
-                                                        } finally {
-                                                            isSaving = false
-                                                        }
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(Icons.Default.ArrowForward, "Save", tint = MaterialTheme.colorScheme.primary)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    },
-
                     snackbarHost = {
                         SnackbarHost(
                             hostState = snackbarHostState,
@@ -734,6 +558,117 @@ fun CalendarApp(
                                 }
                             }
                         }
+
+            // 2. Floating Overlay Input Bar (Wrapped in Box)
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
+                        .background(pageBackgroundColor)
+                        .animateContentSize()
+                ) {
+                    HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // A. View Switcher
+                        Row(
+                            modifier = Modifier
+                               .background(Color(0xFF333333), RoundedCornerShape(20.dp))
+                               .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(onClick = { currentTab = Tab.Calendar }, modifier = Modifier.size(36.dp).background(if (currentTab == Tab.Calendar) MaterialTheme.colorScheme.primary else Color.Transparent, CircleShape)) {
+                                Icon(Icons.Default.DateRange, "Calendar", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                            IconButton(onClick = { currentTab = Tab.Notes }, modifier = Modifier.size(36.dp).background(if (currentTab == Tab.Notes) MaterialTheme.colorScheme.primary else Color.Transparent, CircleShape)) {
+                                Icon(Icons.Default.Menu, "Notes", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
+
+                        // B. Persistent Input Bar
+                        var inputText by remember { mutableStateOf("") }
+                        var isSaving by remember { mutableStateOf(false) }
+
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            placeholder = { Text(if (currentTab == Tab.Calendar) "New Reminder..." else "New Note...", color = Color.Gray, fontSize = 14.sp) },
+                            modifier = Modifier.weight(1f).heightIn(min = 40.dp, max = 100.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF1E1E1E),
+                                unfocusedContainerColor = Color(0xFF1E1E1E),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            trailingIcon = {
+                                if (isSaving) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp)
+                                } else if (inputText.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            if (isSaving) return@IconButton
+                                            isSaving = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    debugLogs += "${getFormattedTime()}: Requesting AI for: '$inputText'\n"
+                                                    if (currentTab == Tab.Calendar) {
+                                                        val today = getToday()
+                                                        var parsedNote: ParsedNote? = null
+                                                        if (apiKey.isNotBlank()) {
+                                                            try {
+                                                                parsedNote = aiService.parseNote(inputText, apiKey, today)
+                                                                debugLogs += "${getFormattedTime()}: AI Response: $parsedNote\n"
+                                                            } catch (e: Exception) {
+                                                                debugLogs += "${getFormattedTime()}: AI Error: ${e.message}\n"
+                                                            }
+                                                        }
+                                                        val title = parsedNote?.title ?: "Reminder"
+                                                        val desc = parsedNote?.description ?: inputText
+                                                        val noteDate = if (parsedNote?.year != null) LocalDate(parsedNote.year, parsedNote.month!!, parsedNote.day!!) else today
+                                                        val noteTime = if (parsedNote != null) LocalTime(parsedNote.hour, parsedNote.minute) else LocalTime(12, 0)
+                                                        val newNote = CalendarNote(
+                                                            id = -1L, title = title, description = desc, time = noteDate.atTime(noteTime), endDate = null,
+                                                            color = if (parsedNote != null) noteColors.getOrElse(parsedNote.colorIndex) { Colors.accent } else Colors.accent,
+                                                            isCompleted = false, recurrenceType = parsedNote?.recurrenceType, recurrenceRule = null, nagEnabled = parsedNote?.nagEnabled ?: false,
+                                                            lastCompletedAt = null, snoozedUntil = null, severity = if (parsedNote?.severity != null) Severity.valueOf(parsedNote.severity) else Severity.MEDIUM,
+                                                            reminderOffsets = parsedNote?.reminderOffsets ?: listOf(0L)
+                                                        )
+                                                        dbHelper.insert(newNote)
+                                                        selection = CalendarDay(noteDate, DayPosition.MonthDate)
+                                                        val targetMonth = YearMonth(noteDate.year, noteDate.month)
+                                                        if (targetMonth != state.firstVisibleMonth.yearMonth) {
+                                                             state.animateScrollToMonth(targetMonth)
+                                                        }
+                                                    } else {
+                                                        dbHelper.insertQueue(inputText)
+                                                        currentTab = Tab.Notes
+                                                    }
+                                                    inputText = ""
+                                                } finally {
+                                                    isSaving = false
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.ArrowForward, "Save", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
             }
 
             // Removed duplicate SnackbarHost from here as it is now in Scaffold
