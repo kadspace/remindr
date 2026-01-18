@@ -82,9 +82,10 @@ class NoteDbHelper(database: RemindrDatabase) {
     }
 
     fun updateCompletion(id: Long, isCompleted: Boolean) {
+        val now = Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
         queries.updateCompletionStatus(
              is_completed = if (isCompleted) 1L else 0L,
-             last_completed_at = if (isCompleted) "2025-01-01T12:00:00" else null, // Placeholder to bypass Clock error
+             last_completed_at = if (isCompleted) now.toString() else null,
              id = id
         )
     }

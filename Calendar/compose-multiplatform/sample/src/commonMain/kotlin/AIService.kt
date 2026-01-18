@@ -91,8 +91,6 @@ class AIService {
 
         val jsonString = response.choices?.firstOrNull()?.message?.content
              ?: throw IllegalStateException("Empty response from AI (No choices)")
-        
-        println("AIService Raw JSON: $jsonString") // LOGGING
 
         return Json { ignoreUnknownKeys = true }.decodeFromString<ParsedNote>(jsonString)
     }

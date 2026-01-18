@@ -177,12 +177,12 @@ fun CalendarApp(
                 },
                 onTestNotification = {
                     onRequestNotificationTest { message ->
-                        debugLogs += "${java.time.LocalTime.now()}: $message\n"
+                        debugLogs += "${getFormattedTime()}: $message\n"
                     }
                 },
                 onRichTestNotification = {
                     onRequestRichNotificationTest { message ->
-                        debugLogs += "${java.time.LocalTime.now()}: $message\n"
+                        debugLogs += "${getFormattedTime()}: $message\n"
                     }
                 },
                 logs = debugLogs,
@@ -1221,110 +1221,6 @@ private fun CalendarAppPreview() {
 }
 */
 
-@Composable
-fun MagicInputContent(
-    error: String?,
-    isLoading: Boolean,
-    onSwitchToManual: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var text by remember { mutableStateOf("") }
-    val focusRequester = remember { FocusRequester() }
-    
-    val launchSpeech = rememberSpeechRecognizer { spokenText ->
-        val separator = if (text.isBlank()) "" else " "
-        text = text + separator + spokenText
-    }
-    
-    // Auto-focus on first load if desired (optional for persistent bar, maybe annoying if it pops keyboard immediately)
-    // Removed auto-focus to avoid keyboard popping up on app launch.
-    
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Colors.example5ItemViewBgColor) 
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        if (error != null) {
-            Text(error, color = Color.Red, fontSize = 12.sp)
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-             // Manual Mode Toggle ("Writing" / Edit Icon)
-             IconButton(onClick = onSwitchToManual) {
-                 Icon(
-                     imageVector = Icons.Default.Edit, // UPDATED ICON
-                     contentDescription = "Manual Mode", 
-                     tint = Color.Gray,
-                     modifier = Modifier.size(24.dp)
-                 )
-             }
-             
-             OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text("New Note...", fontSize = 14.sp, color = Color.Gray) },
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
-                minLines = 1,
-                maxLines = 3,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedIndicatorColor = Color.Transparent, // Clean look
-                    unfocusedIndicatorColor = Color.Transparent
-                )
-            )
-            
-            // Mic Icon (Always visible if text is empty, or prioritized)
-            if (text.isBlank()) {
-                IconButton(onClick = { launchSpeech() }) {
-                     Icon(
-                         imageVector = Icons.Default.Mic, 
-                         contentDescription = "Voice Input", 
-                         tint = Color.Gray
-                     )
-                }
-            }
-
-            // Send/Save Button (Visible when text is present)
-            if (text.isNotBlank()) {
-                IconButton(
-                    onClick = { 
-                        onConfirm(text) 
-                        text = "" // Clear after send
-                    },
-                    enabled = !isLoading,
-                    modifier = Modifier
-                        .background(Color.White, CircleShape)
-                        .size(40.dp)
-                ) {
-                    if (isLoading) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.Black
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Check, 
-                            contentDescription = "Save",
-                            tint = Color.Black
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 
 // Helper extensions restored locally to fix visibility issues
@@ -1343,6 +1239,7 @@ private fun kotlinx.datetime.DayOfWeek.displayText(uppercase: Boolean = false): 
 }
 
 // Helper for logging
-fun getFormattedTime(): String {
-    return "LOG" 
+private fun getFormattedTime(): String {
+    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    return "${now.hour.toString().padStart(2, '0')}:${now.minute.toString().padStart(2, '0')}:${now.second.toString().padStart(2, '0')}"
 }
