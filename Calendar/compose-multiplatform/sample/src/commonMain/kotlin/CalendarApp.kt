@@ -1240,6 +1240,6 @@ private fun kotlinx.datetime.DayOfWeek.displayText(uppercase: Boolean = false): 
 
 // Helper for logging
 private fun getFormattedTime(): String {
-    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    val now = getCurrentDateTime()
     return "${now.hour.toString().padStart(2, '0')}:${now.minute.toString().padStart(2, '0')}:${now.second.toString().padStart(2, '0')}"
 }
