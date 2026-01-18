@@ -35,6 +35,8 @@ fun SettingsScreen(
     onTestNotification: () -> Unit,
     onRichTestNotification: () -> Unit,
     logs: String,
+    eventTypeLabels: List<String>,
+    onEventTypeLabelsChange: (List<String>) -> Unit,
     onBack: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
@@ -186,20 +188,60 @@ fun SettingsScreen(
                 }
             }
             
-            // Color Legend Section
+            // Event Types Section (Editable)
             SettingsCard(title = "Event Types") {
-                val labels = listOf("Work", "Critical", "Maintenance", "Personal", "Health", "Travel", "Family", "Hobbies")
+                Text(
+                    "Customize your event category names",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Colors.example5TextGrey
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Colors.noteColors.zip(labels).forEach { (color, label) ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Colors.noteColors.forEachIndexed { index, color ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .size(20.dp)
+                                    .size(24.dp)
                                     .clip(androidx.compose.foundation.shape.CircleShape)
                                     .background(color)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(label, color = Color.White)
+
+                            OutlinedTextField(
+                                value = eventTypeLabels.getOrNull(index) ?: "",
+                                onValueChange = { newLabel ->
+                                    val updated = eventTypeLabels.toMutableList()
+                                    if (index < updated.size) {
+                                        updated[index] = newLabel
+                                    } else {
+                                        // Pad with empty strings if needed
+                                        while (updated.size < index) {
+                                            updated.add("")
+                                        }
+                                        updated.add(newLabel)
+                                    }
+                                    onEventTypeLabelsChange(updated)
+                                },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                placeholder = { Text("Type ${index + 1}", color = Colors.example5TextGreyLight) },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = color,
+                                    unfocusedBorderColor = Colors.example5ToolbarColor,
+                                    cursorColor = color,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedContainerColor = Color.Black.copy(alpha = 0.2f),
+                                    unfocusedContainerColor = Color.Transparent
+                                ),
+                                textStyle = MaterialTheme.typography.bodyMedium
+                            )
                         }
                     }
                 }
@@ -210,8 +252,8 @@ fun SettingsScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Version", color = Colors.example5TextGrey)
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("v1.7.0", color = Color.White)
-                        Text("Built: Jan 17, 2025", color = Colors.example5TextGrey, fontSize = 10.sp)
+                        Text("v1.7.3", color = Color.White)
+                        Text("Built: Jan 18, 2025", color = Colors.example5TextGrey, fontSize = 10.sp)
                     }
                 }
                 HorizontalDivider(color = Colors.example5ToolbarColor, modifier = Modifier.padding(vertical = 12.dp))

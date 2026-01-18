@@ -130,8 +130,10 @@ fun CalendarApp(
     val queueNotes = dbHelper.getQueueNotes().collectAsState(initial = emptyList()).value
     
     var apiKey by remember { mutableStateOf("") }
+    var eventTypeLabels by remember { mutableStateOf<List<String>>(emptyList()) }
     LaunchedEffect(Unit) {
         dbHelper.getApiKey()?.let { apiKey = it }
+        eventTypeLabels = dbHelper.getEventTypeLabels()
     }
 
     // State for Magic/Manual Sheet
@@ -186,6 +188,11 @@ fun CalendarApp(
                     }
                 },
                 logs = debugLogs,
+                eventTypeLabels = eventTypeLabels,
+                onEventTypeLabelsChange = { newLabels ->
+                    eventTypeLabels = newLabels
+                    dbHelper.saveEventTypeLabels(newLabels)
+                },
                 onBack = { screen = Screen.Calendar }
             )
         }

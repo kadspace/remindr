@@ -152,4 +152,19 @@ class NoteDbHelper(database: RemindrDatabase) {
     fun saveApiKey(key: String) {
         settingsQueries.upsert("gemini_api_key", key)
     }
+
+    fun getEventTypeLabels(): List<String> {
+        val saved = settingsQueries.get("event_type_labels").executeAsOneOrNull()
+        return if (saved != null) {
+            saved.split("|||").filter { it.isNotBlank() }
+        } else {
+            // Default labels
+            listOf("Work", "Critical", "Personal", "Health", "Misc")
+        }
+    }
+
+    fun saveEventTypeLabels(labels: List<String>) {
+        val joined = labels.joinToString("|||")
+        settingsQueries.upsert("event_type_labels", joined)
+    }
 }
