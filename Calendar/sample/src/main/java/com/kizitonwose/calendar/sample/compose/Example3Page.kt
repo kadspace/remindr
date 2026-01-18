@@ -20,12 +20,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.ripple.RippleAlpha
+import androidx.compose.foundation.shape.CircleShape
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +83,7 @@ fun Example3Page() {
     val startMonth = remember { currentMonth.minusMonths(500) }
     val endMonth = remember { currentMonth.plusMonths(500) }
     var selection by remember { mutableStateOf<CalendarDay?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
     val daysOfWeek = remember { daysOfWeek() }
     val flightsInSelectedDate = remember {
         derivedStateOf {
@@ -86,6 +92,19 @@ fun Example3Page() {
         }
     }
     StatusBarColorUpdateEffect(toolbarColor)
+    
+    BackHandler(enabled = selection != null || showSettings) {
+        if (showSettings) {
+             showSettings = false
+        } else {
+             selection = null
+        }
+    }
+
+    if (showSettings) {
+        SettingsDialog(onDismiss = { showSettings = false })
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -125,6 +144,7 @@ fun Example3Page() {
                         state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.nextMonth)
                     }
                 },
+                onSettingsClick = { showSettings = true },
             )
             HorizontalCalendar(
                 modifier = Modifier.wrapContentWidth(),
@@ -340,4 +360,47 @@ private val Example3RippleConfiguration = RippleConfiguration(
 @Composable
 private fun Example3Preview() {
     Example3Page()
+}
+
+@Composable
+private fun SettingsDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "Color Legend") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LegendItem(R.color.blue_800, "Work")
+                LegendItem(R.color.red_800, "Critical")
+                LegendItem(R.color.brown_700, "Maintenance")
+                LegendItem(R.color.blue_grey_700, "Personal")
+                LegendItem(R.color.teal_700, "Health")
+                LegendItem(R.color.cyan_700, "Travel")
+                LegendItem(R.color.pink_700, "Family")
+                LegendItem(R.color.green_700, "Finance")
+                LegendItem(R.color.orange_800, "Hobbies")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        containerColor = pageBackgroundColor,
+        titleContentColor = Color.White,
+        textContentColor = Color.White,
+    )
+}
+
+@Composable
+private fun LegendItem(colorRes: Int, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .padding(end = 12.dp)
+                .height(20.dp)
+                .aspectRatio(1f)
+                .background(colorResource(colorRes), shape = CircleShape)
+        )
+        Text(text = label, color = Color.White)
+    }
 }

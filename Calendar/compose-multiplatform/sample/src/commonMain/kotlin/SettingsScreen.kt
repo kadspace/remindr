@@ -65,7 +65,8 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
-                .imePadding(),
+                .imePadding()
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
 
@@ -182,6 +183,25 @@ fun SettingsScreen(
                         color = Color.White,
                         fontSize = 10.sp
                     )
+                }
+            }
+            
+            // Color Legend Section
+            SettingsCard(title = "Event Types") {
+                val labels = listOf("Work", "Critical", "Maintenance", "Personal", "Health", "Travel", "Family", "Hobbies")
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Colors.noteColors.zip(labels).forEach { (color, label) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(color)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(label, color = Color.White)
+                        }
+                    }
                 }
             }
             

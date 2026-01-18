@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ fun SimpleCalendarTitle(
     isHorizontal: Boolean = true,
     goToPrevious: () -> Unit,
     goToNext: () -> Unit,
+    onSettingsClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.height(40.dp),
@@ -64,6 +66,14 @@ fun SimpleCalendarTitle(
             onClick = goToNext,
             isHorizontal = isHorizontal,
         )
+        if (onSettingsClick != null) {
+            CalendarNavigationIcon(
+                imageVector = androidx.compose.material.icons.Icons.Default.Settings,
+                contentDescription = "Settings",
+                onClick = onSettingsClick,
+                isHorizontal = isHorizontal,
+            )
+        }
     }
 }
 

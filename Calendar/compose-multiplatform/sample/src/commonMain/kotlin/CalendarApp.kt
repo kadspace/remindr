@@ -79,16 +79,7 @@ private val toolbarColor: Color = Colors.example5ToolbarColor
 private val selectedItemColor: Color = Colors.example5TextGrey
 private val inActiveTextColor: Color = Colors.example5TextGreyLight
 
-private val noteColors = listOf(
-    Color(0xFF1565C0),
-    Color(0xFFC62828),
-    Color(0xFF5D4037),
-    Color(0xFF455A64),
-    Color(0xFF00796B),
-    Color(0xFF0097A7),
-    Color(0xFFC2185B),
-    Color(0xFFEF6C00),
-)
+// noteColors moved to Colors.kt
 
 enum class Screen {
     Calendar, Settings
@@ -163,7 +154,7 @@ fun CalendarApp(
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf<LocalDate?>(null) }
-    var selectedColor by remember { mutableStateOf(noteColors.first()) }
+    var selectedColor by remember { mutableStateOf(Colors.noteColors.first()) }
     var selectedTime by remember { mutableStateOf(LocalTime(8, 0)) }
     
     // New State for Reminders
@@ -218,6 +209,14 @@ fun CalendarApp(
             val visibleMonth = rememberFirstCompletelyVisibleMonth(state)
             LaunchedEffect(visibleMonth) {
                 selection = null
+            }
+
+            BackHandler(enabled = selection != null || screen == Screen.Settings) {
+                 if (screen == Screen.Settings) {
+                     screen = Screen.Calendar
+                 } else {
+                     selection = null
+                 }
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
@@ -639,7 +638,7 @@ fun CalendarApp(
                                                         val noteTime = if (parsedNote != null) LocalTime(parsedNote.hour, parsedNote.minute) else LocalTime(12, 0)
                                                         val newNote = CalendarNote(
                                                             id = -1L, title = title, description = desc, time = noteDate.atTime(noteTime), endDate = null,
-                                                            color = if (parsedNote != null) noteColors.getOrElse(parsedNote.colorIndex) { Colors.accent } else Colors.accent,
+                                                            color = if (parsedNote != null) Colors.noteColors.getOrElse(parsedNote.colorIndex) { Colors.accent } else Colors.accent,
                                                             isCompleted = false, recurrenceType = parsedNote?.recurrenceType, recurrenceRule = null, nagEnabled = parsedNote?.nagEnabled ?: false,
                                                             lastCompletedAt = null, snoozedUntil = null, severity = if (parsedNote?.severity != null) Severity.valueOf(parsedNote.severity) else Severity.MEDIUM,
                                                             reminderOffsets = parsedNote?.reminderOffsets ?: listOf(0L)
@@ -948,7 +947,7 @@ private fun EditNoteSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    noteColors.forEach { color ->
+                    Colors.noteColors.forEach { color ->
                         Box(
                             modifier = Modifier
                                 .size(32.dp)

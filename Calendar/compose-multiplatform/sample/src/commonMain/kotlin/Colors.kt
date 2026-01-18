@@ -21,4 +21,15 @@ object Colors {
     val example7Yellow = Color(0xFFFFEB3B)
     val primary = Color(0xFF3F51B5)
     val accent = Color(0xFFFF4081)
+
+    val noteColors = listOf(
+        Color(0xFF1565C0),
+        Color(0xFFC62828),
+        Color(0xFF5D4037),
+        Color(0xFF455A64),
+        Color(0xFF00796B),
+        Color(0xFF0097A7),
+        Color(0xFFC2185B),
+        Color(0xFFEF6C00),
+    )
 }
