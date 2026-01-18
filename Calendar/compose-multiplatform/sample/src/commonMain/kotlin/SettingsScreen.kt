@@ -252,7 +252,17 @@ fun SettingsScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Version", color = Colors.example5TextGrey)
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("v1.7.3", color = Color.White)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("v1.7.3", color = Color.White)
+                            Text("ALPHA",
+                                color = Color.Black,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .background(Colors.accent, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                         Text("Built: Jan 18, 2025", color = Colors.example5TextGrey, fontSize = 10.sp)
                     }
                 }
