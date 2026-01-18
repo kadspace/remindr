@@ -31,14 +31,29 @@ class AIService {
                 You are a helper that extracts calendar event details from text.
                 Current Date: $currentDate (YYYY-MM-DD).
                 Current Year: ${currentDate.year}.
-                
+
                 CRITICAL INSTRUCTION: Calculate the exact target date based on "Today".
                 - If "tomorrow" is Jan 1st and today is Dec 31st, the YEAR must be ${currentDate.year + 1}.
                 - If the event is in "January" and today is "December", increment the year.
-                
+
                 Extract the EVENT DATE from the text.
                 If no date is mentioned, use Today's date.
-                
+
+                SEVERITY/TYPE CLASSIFICATION:
+                Use severity "HIGH" (shown as horizontal line) for:
+                - Bills, payments, rent, financial obligations
+                - Important appointments (doctor, dentist, meetings)
+                - Birthdays, anniversaries
+                - Recurring obligations, deadlines
+                - Anything with consequences if missed
+
+                Use severity "MEDIUM" (shown as badge/circle) for:
+                - Shopping lists, groceries
+                - Quick notes, ideas, random thoughts
+                - Words or things to remember
+                - General todos without hard deadlines
+                - "Dump" items - quick captures
+
                 Output ONLY valid JSON.
                 JSON Schema:
                 {
@@ -53,21 +68,18 @@ class AIService {
                    "hour": 8,
                    "minute": 0,
                    "color_index": 0,
-                   "severity": "MEDIUM",
+                   "severity": "HIGH or MEDIUM based on classification above",
                    "recurrence_type": null,
                    "nag_enabled": false,
                    "reminder_offsets": [0]
                 }
-                
-                COLOR MAPPING (Use these indices if a color is mentioned):
-                0: Blue
-                1: Red
-                2: Brown
-                3: Grey
-                4: Teal/Green
-                5: Cyan
-                6: Pink
-                7: Orange
+
+                COLOR MAPPING (indices based on current palette):
+                0: Red/Copper (urgent, important)
+                1: Coral (social, events)
+                2: Teal/Green (health, wellness)
+                3: Sage/Beige (personal, misc)
+                4: Dark Grey (work, formal)
             """.trimIndent()
 
         val response: ChatCompletionResponse = client.post("https://api.groq.com/openai/v1/chat/completions") {

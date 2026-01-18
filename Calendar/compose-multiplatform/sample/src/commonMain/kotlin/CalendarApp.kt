@@ -76,7 +76,7 @@ fun YearMonth.lengthOfMonth(): Int = atEndOfMonth().dayOfMonth
 private val pageBackgroundColor: Color = Colors.example5PageBgColor
 private val itemBackgroundColor: Color = Colors.example5ItemViewBgColor
 private val toolbarColor: Color = Colors.example5ToolbarColor
-private val selectedItemColor: Color = Colors.example5TextGrey
+private val selectedItemColor: Color = Colors.accent
 private val inActiveTextColor: Color = Colors.example5TextGreyLight
 
 // noteColors moved to Colors.kt
@@ -211,11 +211,14 @@ fun CalendarApp(
                 selection = null
             }
 
-            BackHandler(enabled = selection != null || screen == Screen.Settings) {
-                 if (screen == Screen.Settings) {
-                     screen = Screen.Calendar
-                 } else {
-                     selection = null
+            BackHandler(enabled = sheetMode != 0 || selection != null || screen == Screen.Settings) {
+                 when {
+                     sheetMode != 0 -> {
+                         sheetMode = 0
+                         editingNoteId = null
+                     }
+                     screen == Screen.Settings -> screen = Screen.Calendar
+                     selection != null -> selection = null
                  }
             }
 
@@ -696,41 +699,22 @@ private fun EditNoteSheet(
     onSeverityChange: (Severity) -> Unit,
     onSave: () -> Unit
 ) {
-    val timePresets = listOf(
-        LocalTime(8, 0),
-        LocalTime(12, 0),
-        LocalTime(15, 0),
-        LocalTime(18, 0),
-        LocalTime(20, 0)
-    )
     val focusRequester = remember { FocusRequester() }
-
-    val launchSpeech = rememberSpeechRecognizer { spokenText ->
-        val separator = if (description.isBlank()) "" else " "
-        onDescriptionChange(description + separator + spokenText)
-    }
+    val isCritical = severity == Severity.HIGH
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
         modifier = Modifier.padding(bottom = 16.dp)
     ) {
-        // Header
-        Text(
-            "Note Details", 
-            style = MaterialTheme.typography.titleLarge, 
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-        )
-
-        // 1. Title Input
+        // Title Input
         OutlinedTextField(
             value = title,
             onValueChange = onTitleChange,
-            label = { Text("Title", color = Color.White.copy(alpha = 0.7f)) },
+            placeholder = { Text("What's on your mind?", color = Color.White.copy(alpha = 0.5f)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester),
@@ -746,238 +730,94 @@ private fun EditNoteSheet(
             singleLine = true,
             textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
-        
-        // 2. Description Input
-        OutlinedTextField(
-            value = description,
-            onValueChange = onDescriptionChange,
-            label = { Text("Details", color = Color.White.copy(alpha = 0.7f)) },
+
+        // Type Toggle: Badge vs Line
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                cursorColor = Color.White,
-                focusedIndicatorColor = selectedColor,
-                unfocusedIndicatorColor = Color.Gray
-            ),
-            trailingIcon = {
-                 IconButton(onClick = { launchSpeech() }) {
-                     Icon(Icons.Filled.Mic, "Voice", tint = selectedColor)
-                 }
-            },
-            maxLines = 5
-        )
-
-        // 2. Time & Recurrence (When)
-        Card(
-            colors = CardDefaults.cardColors(containerColor = itemBackgroundColor),
-            shape = RoundedCornerShape(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.AccessTime, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Time", color = Color.Gray, fontSize = 14.sp)
-                }
-                
-                // Formatted Time Display (Ideally a picker, using Presets for now)
-                val formattedTime = "${selectedTime.hour}:${selectedTime.minute.toString().padStart(2, '0')}"
-                Text(formattedTime, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.horizontalScroll(rememberScrollState())
+            // Badge option
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSeverityChange(Severity.MEDIUM) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (!isCritical) selectedColor.copy(alpha = 0.3f) else itemBackgroundColor
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = if (!isCritical) BorderStroke(2.dp, selectedColor) else null
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    timePresets.forEach { time ->
-                        val isSelected = selectedTime == time
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { onTimeChange(time) },
-                            label = { 
-                                val label = when(time.hour) {
-                                    8 -> "Morning"
-                                    12 -> "Noon"
-                                    15 -> "Afternoon"
-                                    18 -> "Evening"
-                                    20 -> "Night"
-                                    else -> "${time.hour}:${time.minute}"
-                                }
-                                Text(label) 
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = selectedColor,
-                                selectedLabelColor = Color.White,
-                                containerColor = Color.Black.copy(alpha = 0.3f),
-                                labelColor = Color.White
-                            )
-                        )
-                    }
-                }
-                
-                HorizontalDivider(color = Color.Gray.copy(alpha = 0.3f))
-                
-                // Recurrence
-                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Refresh, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Repeat: ${recurrenceType ?: "Never"}", color = Color.White)
-                    }
-                    
-                    var expanded by remember { mutableStateOf(false) }
-                    Box {
-                        TextButton(onClick = { expanded = true }) {
-                            Text("Change", color = selectedColor)
-                        }
-                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            listOf(null, "DAILY", "WEEKLY", "MONTHLY").forEach { type ->
-                                DropdownMenuItem(
-                                    text = { Text(type?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Never") },
-                                    onClick = { 
-                                        onRecurrenceTypeChange(type)
-                                        expanded = false 
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. Importance & Reminders (How)
-        Card(
-            colors = CardDefaults.cardColors(containerColor = itemBackgroundColor),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Notifications, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Notifications", color = Color.Gray, fontSize = 14.sp)
-                }
-
-                // Severity
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                     Severity.entries.forEach { level ->
-                         val isSelected = severity == level
-                         val (color, label) = when(level) {
-                             Severity.HIGH -> Color.Red to "High / Loud"
-                             Severity.MEDIUM -> Color.Yellow to "Medium"
-                             Severity.LOW -> Color.Blue to "Low / Silent"
-                         }
-                         
-                         FilterChip(
-                             selected = isSelected,
-                             onClick = { onSeverityChange(level) },
-                             label = { Text(level.name) },
-                             colors = FilterChipDefaults.filterChipColors(
-                                 selectedContainerColor = color.copy(alpha = 0.8f),
-                                 selectedLabelColor = Color.White,
-                                 containerColor = Color.Black.copy(alpha = 0.3f),
-                                 labelColor = Color.White
-                             ),
-                             modifier = Modifier.weight(1f)
-                         )
-                    }
-                }
-                
-                // Offsets
-                Text("Remind me:", color = Color.White, fontSize = 14.sp)
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                      val offsets = listOf(0L to "At time", 10L to "10m before", 30L to "30m", 60L to "1h", 1440L to "1d")
-                      offsets.forEach { (offset, label) ->
-                          val isSelected = reminderOffsets.contains(offset)
-                          FilterChip(
-                              selected = isSelected,
-                              onClick = { 
-                                  val newOffsets = if (isSelected) reminderOffsets - offset else reminderOffsets + offset
-                                  onReminderOffsetsChange(newOffsets)
-                              },
-                              label = { Text(label) },
-                              colors = FilterChipDefaults.filterChipColors(
-                                  selectedContainerColor = selectedColor,
-                                  selectedLabelColor = Color.White,
-                                  containerColor = Color.Black.copy(alpha = 0.3f),
-                                  labelColor = Color.White
-                              )
-                          )
-                      }
-                }
-                
-                // Nag
-                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text("Nagging Mode", color = Color.White, fontWeight = FontWeight.SemiBold)
-                        Text("Keep reminding until done", color = Color.Gray, fontSize = 12.sp)
-                    }
-                    Switch(
-                        checked = nagEnabled,
-                        onCheckedChange = onNagEnabledChange,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = selectedColor
-                        )
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(selectedColor, CircleShape)
                     )
+                    Spacer(Modifier.height(8.dp))
+                    Text("Badge", color = Color.White, fontWeight = FontWeight.Medium)
+                }
+            }
+
+            // Line option (Critical)
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSeverityChange(Severity.HIGH) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isCritical) selectedColor.copy(alpha = 0.3f) else itemBackgroundColor
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = if (isCritical) BorderStroke(2.dp, selectedColor) else null
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(6.dp)
+                            .background(selectedColor, RoundedCornerShape(3.dp))
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("Critical", color = Color.White, fontWeight = FontWeight.Medium)
                 }
             }
         }
-        
-        // 4. Look (Color)
-        Card(
-             colors = CardDefaults.cardColors(containerColor = itemBackgroundColor),
-             shape = RoundedCornerShape(12.dp)
-        ) {
-             Column(modifier = Modifier.padding(12.dp)) {
-                Text("Color", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(bottom=8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Colors.noteColors.forEach { color ->
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(color = color, shape = CircleShape)
-                                .clickable { onColorChange(color) }
-                                .border(
-                                    width = if (selectedColor == color) 2.dp else 0.dp,
-                                    color = Color.White,
-                                    shape = CircleShape
-                                )
-                        )
-                    }
-                }
-             }
-        }
-        
-        Spacer(Modifier.height(16.dp))
 
-        // Save Button (Big & Bottom)
+        // Color Picker
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Colors.noteColors.forEach { color ->
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(color = color, shape = CircleShape)
+                        .clickable { onColorChange(color) }
+                        .border(
+                            width = if (selectedColor == color) 3.dp else 0.dp,
+                            color = Color.White,
+                            shape = CircleShape
+                        )
+                )
+            }
+        }
+
+        // Save Button
         Button(
             onClick = onSave,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = selectedColor),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.Check, null)
-            Spacer(Modifier.width(8.dp))
-            Text("Save Note", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Save", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1023,22 +863,57 @@ private fun Day(
                 onClick = { onClick(day) },
             ),
     ) {
+        // Split notes into critical (lines) and regular (badges)
+        val criticalNotes = notes.filter { it.severity == Severity.HIGH }
+        val regularNotes = notes.filter { it.severity != Severity.HIGH }
+        val maxLines = 3
+
+        // Lines section at bottom - gray base lines with colored fills stacking up
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(bottom = 8.dp),
+                .padding(bottom = if (regularNotes.isEmpty()) 6.dp else 18.dp, start = 4.dp, end = 4.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            
         ) {
-            val grouped = notes.groupBy { it.color }
-            grouped.forEach { (color, notesForColor) ->
+            // Draw lines from bottom to top (reversed order)
+            for (i in (maxLines - 1) downTo 0) {
+                val noteIndex = criticalNotes.size - 1 - ((maxLines - 1) - i)
+                val note = criticalNotes.getOrNull(noteIndex)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height((notesForColor.size * 4).dp) // "Squish" height logic
-                        .background(color),
+                        .height(3.dp)
+                        .background(
+                            color = note?.color ?: Color(0xFF2A2A2A),
+                            shape = RoundedCornerShape(1.dp)
+                        ),
                 )
+            }
+        }
+
+        // Regular notes as circle badges at very bottom
+        if (regularNotes.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                regularNotes.take(4).forEach { note ->
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .background(note.color, shape = CircleShape),
+                    )
+                }
+                if (regularNotes.size > 4) {
+                    Text(
+                        text = "+${regularNotes.size - 4}",
+                        color = Color.Gray,
+                        fontSize = 6.sp,
+                    )
+                }
             }
         }
         val textColor = when (day.position) {

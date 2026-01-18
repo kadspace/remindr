@@ -143,8 +143,8 @@ android {
         applicationId = "com.kizitonwose.calendar.compose.multiplatform.sample"
         minSdk = Android.minSdk
         targetSdk = Android.targetSdk
-        versionCode = 12
-        versionName = "1.7.0"
+        versionCode = 14
+        versionName = "1.7.2"
         multiDexEnabled = true
     }
     packaging {
