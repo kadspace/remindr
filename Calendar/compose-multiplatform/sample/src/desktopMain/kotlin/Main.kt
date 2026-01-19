@@ -5,7 +5,7 @@ import com.kizitonwose.calendar.compose.multiplatform.sample.DatabaseDriverFacto
 fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
-        title = "Calendar Sample",
+        title = "Remindr",
     ) {
         val driverFactory = com.kizitonwose.calendar.compose.multiplatform.sample.DatabaseDriverFactory()
         App(driverFactory)

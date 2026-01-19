@@ -253,7 +253,7 @@ fun SettingsScreen(
                     Text("Version", color = Colors.example5TextGrey)
                     Column(horizontalAlignment = Alignment.End) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("v1.7.3", color = Color.White)
+                            Text("v1.7.4", color = Color.White)
                             Text("ALPHA",
                                 color = Color.Black,
                                 fontSize = 10.sp,
@@ -269,7 +269,7 @@ fun SettingsScreen(
                 HorizontalDivider(color = Colors.example5ToolbarColor, modifier = Modifier.padding(vertical = 12.dp))
                  Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Build", color = Colors.example5TextGrey)
-                    Text("Compose Multiplatform", color = Color.White)
+                    Text("Kotlin Multiplatform", color = Color.White)
                 }
             }
         }

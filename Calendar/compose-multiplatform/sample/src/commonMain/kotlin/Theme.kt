@@ -3,7 +3,7 @@ package com.kizitonwose.calendar.compose.multiplatform.sample
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.graphics.Color
 
-val SampleColorScheme = darkColorScheme(
+val RemindrTheme = darkColorScheme(
     primary = Colors.accent,
     onPrimary = Color.White,
     primaryContainer = Colors.accent,

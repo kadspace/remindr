@@ -2,7 +2,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import com.kizitonwose.calendar.compose.multiplatform.sample.CalendarApp
 import com.kizitonwose.calendar.compose.multiplatform.sample.DatabaseDriverFactory
-import com.kizitonwose.calendar.compose.multiplatform.sample.SampleColorScheme
+import com.kizitonwose.calendar.compose.multiplatform.sample.RemindrTheme
 import com.kizitonwose.calendar.compose.multiplatform.sample.ReminderScheduler
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -14,7 +14,7 @@ fun App(
     onRequestNotificationTest: ((String) -> Unit) -> Unit = {},
     onRequestRichNotificationTest: ((String) -> Unit) -> Unit = {}
 ) {
-    MaterialTheme(SampleColorScheme) {
+    MaterialTheme(RemindrTheme) {
         CalendarApp(driverFactory, requestMagicAdd, scheduler, onRequestNotificationTest, onRequestRichNotificationTest)
     }
 }
