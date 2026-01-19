@@ -1,0 +1,406 @@
+package com.kizitonwose.remindr.sample.compose
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.ripple.RippleAlpha
+import androidx.compose.foundation.shape.CircleShape
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.RippleConfiguration
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.kizitonwose.remindr.compose.HorizontalCalendar
+import com.kizitonwose.remindr.compose.rememberCalendarState
+import com.kizitonwose.remindr.core.CalendarDay
+import com.kizitonwose.remindr.core.DayPosition
+import com.kizitonwose.remindr.core.OutDateStyle
+import com.kizitonwose.remindr.core.daysOfWeek
+import com.kizitonwose.remindr.core.nextMonth
+import com.kizitonwose.remindr.core.previousMonth
+import com.kizitonwose.remindr.sample.R
+import com.kizitonwose.remindr.sample.shared.Flight
+import com.kizitonwose.remindr.sample.shared.Flight.Airport
+import com.kizitonwose.remindr.sample.shared.displayText
+import com.kizitonwose.remindr.sample.shared.flightDateTimeFormatter
+import com.kizitonwose.remindr.sample.shared.generateFlights
+import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.YearMonth
+import java.util.Locale
+
+private val flights = generateFlights().groupBy { it.time.toLocalDate() }
+
+private val pageBackgroundColor: Color @Composable get() = colorResource(R.color.example_5_page_bg_color)
+private val itemBackgroundColor: Color @Composable get() = colorResource(R.color.example_5_item_view_bg_color)
+private val toolbarColor: Color @Composable get() = colorResource(R.color.example_5_toolbar_color)
+private val selectedItemColor: Color @Composable get() = colorResource(R.color.example_5_text_grey)
+private val inActiveTextColor: Color @Composable get() = colorResource(R.color.example_5_text_grey_light)
+
+@Composable
+fun Example3Page() {
+    val currentMonth = remember { YearMonth.now() }
+    val startMonth = remember { currentMonth.minusMonths(500) }
+    val endMonth = remember { currentMonth.plusMonths(500) }
+    var selection by remember { mutableStateOf<CalendarDay?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
+    val daysOfWeek = remember { daysOfWeek() }
+    val flightsInSelectedDate = remember {
+        derivedStateOf {
+            val date = selection?.date
+            if (date == null) emptyList() else flights[date].orEmpty()
+        }
+    }
+    StatusBarColorUpdateEffect(toolbarColor)
+    
+    BackHandler(enabled = selection != null || showSettings) {
+        if (showSettings) {
+             showSettings = false
+        } else {
+             selection = null
+        }
+    }
+
+    if (showSettings) {
+        SettingsDialog(onDismiss = { showSettings = false })
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(pageBackgroundColor)
+            .applyScaffoldHorizontalPaddings()
+            .applyScaffoldBottomPadding(),
+    ) {
+        val state = rememberCalendarState(
+            startMonth = startMonth,
+            endMonth = endMonth,
+            firstVisibleMonth = currentMonth,
+            firstDayOfWeek = daysOfWeek.first(),
+            outDateStyle = OutDateStyle.EndOfGrid,
+        )
+        val coroutineScope = rememberCoroutineScope()
+        val visibleMonth = rememberFirstCompletelyVisibleMonth(state)
+        LaunchedEffect(visibleMonth) {
+            // Clear selection if we scroll to a new month.
+            selection = null
+        }
+
+        // Draw light content on dark background.
+        CompositionLocalProvider(LocalContentColor provides Color.White) {
+            SimpleCalendarTitle(
+                modifier = Modifier
+                    .background(toolbarColor)
+                    .padding(horizontal = 8.dp, vertical = 12.dp)
+                    .applyScaffoldTopPadding(),
+                currentMonth = visibleMonth.yearMonth,
+                goToPrevious = {
+                    coroutineScope.launch {
+                        state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.previousMonth)
+                    }
+                },
+                goToNext = {
+                    coroutineScope.launch {
+                        state.animateScrollToMonth(state.firstVisibleMonth.yearMonth.nextMonth)
+                    }
+                },
+                onSettingsClick = { showSettings = true },
+            )
+            HorizontalCalendar(
+                modifier = Modifier.wrapContentWidth(),
+                state = state,
+                dayContent = { day ->
+                    @OptIn(ExperimentalMaterial3Api::class)
+                    CompositionLocalProvider(LocalRippleConfiguration provides Example3RippleConfiguration) {
+                        val colors = if (day.position == DayPosition.MonthDate) {
+                            flights[day.date].orEmpty().map { colorResource(it.color) }
+                        } else {
+                            emptyList()
+                        }
+                        Day(
+                            day = day,
+                            isSelected = selection == day,
+                            colors = colors,
+                        ) { clicked ->
+                            selection = clicked
+                        }
+                    }
+                },
+                monthHeader = {
+                    MonthHeader(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        daysOfWeek = daysOfWeek,
+                    )
+                },
+            )
+            HorizontalDivider(color = pageBackgroundColor)
+            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                items(items = flightsInSelectedDate.value) { flight ->
+                    FlightInformation(flight)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Day(
+    day: CalendarDay,
+    isSelected: Boolean = false,
+    colors: List<Color> = emptyList(),
+    onClick: (CalendarDay) -> Unit = {},
+) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f) // This is important for square-sizing!
+            .border(
+                width = if (isSelected) 1.dp else 0.dp,
+                color = if (isSelected) selectedItemColor else Color.Transparent,
+            )
+            .padding(1.dp)
+            .background(color = itemBackgroundColor)
+            // Disable clicks on inDates/outDates
+            .clickable(
+                enabled = day.position == DayPosition.MonthDate,
+                onClick = { onClick(day) },
+            ),
+    ) {
+        val textColor = when (day.position) {
+            DayPosition.MonthDate -> Color.Unspecified
+            DayPosition.InDate, DayPosition.OutDate -> inActiveTextColor
+        }
+        Text(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 3.dp, end = 4.dp),
+            text = day.date.dayOfMonth.toString(),
+            color = textColor,
+            fontSize = 12.sp,
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            for (color in colors) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .background(color),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthHeader(
+    modifier: Modifier = Modifier,
+    daysOfWeek: List<DayOfWeek> = emptyList(),
+) {
+    Row(modifier.fillMaxWidth()) {
+        for (dayOfWeek in daysOfWeek) {
+            Text(
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center,
+                fontSize = 12.sp,
+                color = Color.White,
+                text = dayOfWeek.displayText(uppercase = true),
+                fontWeight = FontWeight.Light,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LazyItemScope.FlightInformation(flight: Flight) {
+    Row(
+        modifier = Modifier
+            .fillParentMaxWidth()
+            .height(IntrinsicSize.Max),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .background(color = colorResource(flight.color))
+                .fillParentMaxWidth(1 / 7f)
+                .aspectRatio(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = flightDateTimeFormatter.format(flight.time).uppercase(Locale.ENGLISH),
+                textAlign = TextAlign.Center,
+                lineHeight = 17.sp,
+                fontSize = 12.sp,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .background(color = itemBackgroundColor)
+                .weight(1f)
+                .fillMaxHeight(),
+        ) {
+            AirportInformation(flight.departure, isDeparture = true)
+        }
+        Box(
+            modifier = Modifier
+                .background(color = itemBackgroundColor)
+                .weight(1f)
+                .fillMaxHeight(),
+        ) {
+            AirportInformation(flight.destination, isDeparture = false)
+        }
+    }
+    HorizontalDivider(thickness = 2.dp, color = pageBackgroundColor)
+}
+
+@Composable
+private fun AirportInformation(airport: Airport, isDeparture: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(),
+    ) {
+        val resource = if (isDeparture) {
+            R.drawable.ic_airplane_takeoff
+        } else {
+            R.drawable.ic_airplane_landing
+        }
+        Box(
+            modifier = Modifier
+                .weight(0.3f)
+                .fillMaxHeight()
+                .fillMaxHeight(),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Image(painter = painterResource(resource), contentDescription = null)
+        }
+        Column(
+            modifier = Modifier
+                .weight(0.7f)
+                .fillMaxHeight()
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = airport.code,
+                textAlign = TextAlign.Center,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = airport.city,
+                textAlign = TextAlign.Center,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Light,
+            )
+        }
+    }
+}
+
+// The default dark them ripple is too bright so we tone it down.
+@OptIn(ExperimentalMaterial3Api::class)
+private val Example3RippleConfiguration = RippleConfiguration(
+    color = Color.Gray,
+    // Copied from RippleTheme#DarkThemeRippleAlpha
+    rippleAlpha = RippleAlpha(
+        pressedAlpha = 0.10f,
+        focusedAlpha = 0.12f,
+        draggedAlpha = 0.08f,
+        hoveredAlpha = 0.04f,
+    ),
+)
+
+@Preview(heightDp = 600)
+@Composable
+private fun Example3Preview() {
+    Example3Page()
+}
+
+@Composable
+private fun SettingsDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "Color Legend") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LegendItem(R.color.blue_800, "Work")
+                LegendItem(R.color.red_800, "Critical")
+                LegendItem(R.color.brown_700, "Maintenance")
+                LegendItem(R.color.blue_grey_700, "Personal")
+                LegendItem(R.color.teal_700, "Health")
+                LegendItem(R.color.cyan_700, "Travel")
+                LegendItem(R.color.pink_700, "Family")
+                LegendItem(R.color.green_700, "Finance")
+                LegendItem(R.color.orange_800, "Hobbies")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        containerColor = pageBackgroundColor,
+        titleContentColor = Color.White,
+        textContentColor = Color.White,
+    )
+}
+
+@Composable
+private fun LegendItem(colorRes: Int, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .padding(end = 12.dp)
+                .height(20.dp)
+                .aspectRatio(1f)
+                .background(colorResource(colorRes), shape = CircleShape)
+        )
+        Text(text = label, color = Color.White)
+    }
+}

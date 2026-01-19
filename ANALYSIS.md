@@ -164,7 +164,7 @@ AI returns `colorIndex: 0-4` which maps to `Colors.noteColors[index]`. If you re
 - No ViewModel - appropriate for this app size
 
 ### Smart Library Choices
-- Kizitonwose Calendar handles all date math and grid rendering
+- Remindr Calendar handles all date math and grid rendering
 - SQLDelight provides type-safe queries with Flow support
 - Ktor is lightweight for simple API calls
 

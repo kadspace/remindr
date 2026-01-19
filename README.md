@@ -61,7 +61,7 @@ The AI decides whether something is a critical reminder (line) or casual note (b
 - **Compose Multiplatform** - Reactive UI
 - **SQLDelight** - Type-safe database with Flow-based queries
 - **Ktor** - HTTP client for API calls
-- **Kizitonwose Calendar** - Calendar grid rendering library
+- **Remindr Calendar** - Calendar grid rendering library
 
 ## Setup
 
@@ -73,6 +73,7 @@ The AI decides whether something is a critical reminder (line) or casual note (b
 4. Build and run
 
 ```bash
+cd remindr
 ./gradlew :compose-multiplatform:sample:installDebug
 ```
 
@@ -102,7 +103,7 @@ AI suggests colors based on context (work = red/copper, health = teal, personal 
 ## Project Structure
 
 ```
-Calendar/compose-multiplatform/sample/
+remindr/compose-multiplatform/sample/
 ├── src/
 │   ├── androidMain/     # Android-specific (notifications, receivers)
 │   ├── commonMain/      # Shared code
@@ -152,6 +153,7 @@ Each palette defines:
 
 ## Version History
 
+- **v1.7.4** (Jan 18, 2025) - Renamed project structure to remindr
 - **v1.7.3** (Jan 18, 2025) - Editable event types, new icon
 - **v1.7.2** (Jan 18, 2025) - Badge/line system, color palettes, AI categorization
 - **v1.7.1** (Jan 18, 2025) - Palette permeation, back button fix
@@ -163,4 +165,4 @@ Alpha. Things work but expect rough edges.
 
 ## License
 
-Check the calendar library license in `Calendar/LICENSE.md` (Apache 2.0).
+Check the calendar library license in `remindr/LICENSE.md` (Apache 2.0).
