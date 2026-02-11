@@ -17,7 +17,7 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
             android:windowSoftInputMode="adjustResize"
-            android:name="com.kizitonwose.remindr.compose.multiplatform.MainActivity">
+            android:name="com.remindr.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -25,8 +25,8 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name="com.kizitonwose.remindr.compose.multiplatform.sample.ReminderReceiver" android:exported="false" />
-        <receiver android:name="com.kizitonwose.remindr.compose.multiplatform.sample.NotificationActionReceiver" android:exported="true" />
+        <receiver android:name="com.remindr.app.ReminderReceiver" android:exported="false" />
+        <receiver android:name="com.remindr.app.NotificationActionReceiver" android:exported="true" />
 
     </application>
 

@@ -1,0 +1,43 @@
+package com.remindr.app.ui.theme
+
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.ui.graphics.Color
+
+val RemindrTheme = darkColorScheme(
+    primary = Colors.accent,
+    onPrimary = Color.White,
+    primaryContainer = Colors.accent,
+    onPrimaryContainer = Color.White,
+    inversePrimary = Color.Black,
+    secondary = Colors.accentSecondary,
+    onSecondary = Color.White,
+    secondaryContainer = Colors.accentSecondary,
+    onSecondaryContainer = Color.White,
+    tertiary = Colors.accentSecondary,
+    onTertiary = Color.White,
+    tertiaryContainer = Colors.accentSecondary,
+    onTertiaryContainer = Color.White,
+    background = Colors.example5PageBgColor,
+    onBackground = Color.White,
+    surface = Colors.example5ItemViewBgColor,
+    onSurface = Color.White,
+    surfaceVariant = Colors.example5ToolbarColor,
+    onSurfaceVariant = Color.White,
+    surfaceTint = Colors.accent,
+    inverseSurface = Color.White,
+    inverseOnSurface = Color.Black,
+    error = Color(0xFFCF6679),
+    onError = Color.Black,
+    errorContainer = Color(0xFFB00020),
+    onErrorContainer = Color.White,
+    outline = Color(0xFF5A5A5A),
+    outlineVariant = Color(0xFF3A3A3A),
+    scrim = Color.Black,
+    surfaceBright = Colors.example5ToolbarColor,
+    surfaceContainer = Colors.example5ItemViewBgColor,
+    surfaceContainerHigh = Colors.example5ToolbarColor,
+    surfaceContainerHighest = Color(0xFF2A2A2A),
+    surfaceContainerLow = Colors.example5PageBgColor,
+    surfaceContainerLowest = Color(0xFF080808),
+    surfaceDim = Colors.example5PageBgColor,
+)

@@ -1,0 +1,32 @@
+CREATE TABLE GroupTable (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    icon TEXT,
+    description TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+selectAll:
+SELECT * FROM GroupTable;
+
+selectById:
+SELECT * FROM GroupTable WHERE id = ?;
+
+selectByName:
+SELECT * FROM GroupTable WHERE name = ?;
+
+insert:
+INSERT INTO GroupTable(name, icon, description, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?);
+
+update:
+UPDATE GroupTable
+SET name = ?, icon = ?, description = ?, updated_at = ?
+WHERE id = ?;
+
+delete:
+DELETE FROM GroupTable WHERE id = ?;
+
+selectLast:
+SELECT * FROM GroupTable ORDER BY id DESC LIMIT 1;
