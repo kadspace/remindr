@@ -1,0 +1,93 @@
+CREATE TABLE ReminderSeries (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    notes TEXT,
+    start_at TEXT NOT NULL,
+    timezone TEXT NOT NULL DEFAULT 'SYSTEM',
+    recurrence_kind TEXT NOT NULL DEFAULT 'NONE',
+    recurrence_interval INTEGER NOT NULL DEFAULT 1,
+    by_weekday INTEGER,
+    by_month_day INTEGER,
+    end_mode TEXT NOT NULL DEFAULT 'NEVER',
+    end_at TEXT,
+    end_count INTEGER,
+    generated_count INTEGER NOT NULL DEFAULT 0,
+    reminder_offsets TEXT NOT NULL DEFAULT '0',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    archived_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+selectAll:
+SELECT * FROM ReminderSeries
+ORDER BY updated_at DESC;
+
+selectById:
+SELECT * FROM ReminderSeries
+WHERE id = ?;
+
+selectLast:
+SELECT * FROM ReminderSeries
+ORDER BY id DESC
+LIMIT 1;
+
+selectActive:
+SELECT * FROM ReminderSeries
+WHERE is_active = 1
+ORDER BY updated_at DESC;
+
+insert:
+INSERT INTO ReminderSeries(
+    title,
+    notes,
+    start_at,
+    timezone,
+    recurrence_kind,
+    recurrence_interval,
+    by_weekday,
+    by_month_day,
+    end_mode,
+    end_at,
+    end_count,
+    generated_count,
+    reminder_offsets,
+    is_active,
+    archived_at,
+    created_at,
+    updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateCore:
+UPDATE ReminderSeries
+SET
+    title = ?,
+    notes = ?,
+    start_at = ?,
+    recurrence_kind = ?,
+    recurrence_interval = ?,
+    by_weekday = ?,
+    by_month_day = ?,
+    end_mode = ?,
+    end_at = ?,
+    end_count = ?,
+    reminder_offsets = ?,
+    is_active = ?,
+    archived_at = ?,
+    updated_at = ?
+WHERE id = ?;
+
+setGeneratedCount:
+UPDATE ReminderSeries
+SET
+    generated_count = ?,
+    updated_at = ?
+WHERE id = ?;
+
+setActive:
+UPDATE ReminderSeries
+SET
+    is_active = ?,
+    archived_at = ?,
+    updated_at = ?
+WHERE id = ?;

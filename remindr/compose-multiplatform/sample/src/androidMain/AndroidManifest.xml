@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -17,7 +18,7 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
             android:windowSoftInputMode="adjustResize"
-            android:name="com.kizitonwose.remindr.compose.multiplatform.MainActivity">
+            android:name="com.remindr.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -25,8 +26,16 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name="com.kizitonwose.remindr.compose.multiplatform.sample.ReminderReceiver" android:exported="false" />
-        <receiver android:name="com.kizitonwose.remindr.compose.multiplatform.sample.NotificationActionReceiver" android:exported="true" />
+        <receiver android:name="com.remindr.app.ReminderReceiver" android:exported="false" />
+        <receiver android:name="com.remindr.app.NotificationActionReceiver" android:exported="false" />
+        <receiver android:name="com.remindr.app.ReminderRescheduleReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

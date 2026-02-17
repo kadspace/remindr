@@ -1,0 +1,10 @@
+CREATE TABLE KeyValueStore (
+    paramKey TEXT PRIMARY KEY NOT NULL,
+    paramValue TEXT NOT NULL
+);
+
+upsert:
+INSERT OR REPLACE INTO KeyValueStore(paramKey, paramValue) VALUES (?, ?);
+
+get:
+SELECT paramValue FROM KeyValueStore WHERE paramKey = ?;

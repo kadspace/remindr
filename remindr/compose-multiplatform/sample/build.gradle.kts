@@ -132,7 +132,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.kizitonwose.remindr.compose.multiplatform.sample"
+    namespace = "com.remindr.app"
     compileSdk = Android.compileSdk
 
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
@@ -140,11 +140,11 @@ android {
     sourceSets["main"].resources.srcDirs("src/commonMain/resources")
 
     defaultConfig {
-        applicationId = "com.kizitonwose.remindr.compose.multiplatform.sample"
+        applicationId = "com.remindr.app"
         minSdk = Android.minSdk
         targetSdk = Android.targetSdk
-        versionCode = 16
-        versionName = "1.7.4"
+        versionCode = 22
+        versionName = "2.0.5"
         multiDexEnabled = true
     }
     packaging {
@@ -190,7 +190,7 @@ compose.desktop {
 sqldelight {
     databases {
         create("RemindrDatabase") {
-            packageName.set("com.kizitonwose.remindr.sample.db")
+            packageName.set("com.remindr.app.db")
         }
     }
 }

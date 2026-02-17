@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <clipPath id="r-clip">
+      <!-- Stylized R letterform -->
+      <path d="M160 80 h120 q72 0 72 72 q0 60-52 72 l72 96 h-56 l-64-88 h-40 v88 h-52 v-240z M212 124 v72 h60 q36 0 36-36 t-36-36 h-60z"/>
+    </clipPath>
+    <clipPath id="circle-clip">
+      <circle cx="256" cy="200" r="144"/>
+    </clipPath>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#1a1f1a"/>
+  <!-- Circle with scan lines -->
+  <g clip-path="url(#circle-clip)">
+    <circle cx="256" cy="200" r="144" fill="#e8e0d0"/>
+    <!-- Horizontal scan lines -->
+    <line x1="80" y1="68" x2="432" y2="68" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="82" x2="432" y2="82" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="96" x2="432" y2="96" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="110" x2="432" y2="110" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="124" x2="432" y2="124" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="138" x2="432" y2="138" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="152" x2="432" y2="152" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="166" x2="432" y2="166" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="180" x2="432" y2="180" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="194" x2="432" y2="194" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="208" x2="432" y2="208" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="222" x2="432" y2="222" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="236" x2="432" y2="236" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="250" x2="432" y2="250" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="264" x2="432" y2="264" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="278" x2="432" y2="278" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="292" x2="432" y2="292" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="306" x2="432" y2="306" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="320" x2="432" y2="320" stroke="#1a1f1a" stroke-width="6"/>
+    <line x1="80" y1="334" x2="432" y2="334" stroke="#1a1f1a" stroke-width="6"/>
+  </g>
+  <!-- Cut out the R shape from the circle (R is dark/negative space) -->
+  <g clip-path="url(#circle-clip)">
+    <g clip-path="url(#r-clip)">
+      <rect x="80" y="56" width="360" height="288" fill="#1a1f1a"/>
+    </g>
+  </g>
+  <!-- Text -->
+  <text x="256" y="430" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-size="60" fill="#e8e0d0" letter-spacing="3">REMINDR</text>
+</svg>

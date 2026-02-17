@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <clipPath id="bell-clip">
+      <path d="M256 64c-70.7 0-128 57.3-128 128v80l-32 48h320l-32-48v-80c0-70.7-57.3-128-128-128z"/>
+    </clipPath>
+    <clipPath id="bell-bottom-clip">
+      <ellipse cx="256" cy="340" rx="48" ry="28"/>
+    </clipPath>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#1a1f1a"/>
+  <!-- Bell shape with horizontal line texture -->
+  <g clip-path="url(#bell-clip)">
+    <rect x="96" y="64" width="320" height="256" fill="#e8e0d0"/>
+    <!-- Horizontal scan lines to create striped texture -->
+    <line x1="96" y1="72" x2="416" y2="72" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="84" x2="416" y2="84" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="96" x2="416" y2="96" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="108" x2="416" y2="108" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="120" x2="416" y2="120" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="132" x2="416" y2="132" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="144" x2="416" y2="144" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="156" x2="416" y2="156" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="168" x2="416" y2="168" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="180" x2="416" y2="180" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="192" x2="416" y2="192" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="204" x2="416" y2="204" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="216" x2="416" y2="216" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="228" x2="416" y2="228" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="240" x2="416" y2="240" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="252" x2="416" y2="252" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="264" x2="416" y2="264" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="276" x2="416" y2="276" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="288" x2="416" y2="288" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="300" x2="416" y2="300" stroke="#1a1f1a" stroke-width="5"/>
+    <line x1="96" y1="312" x2="416" y2="312" stroke="#1a1f1a" stroke-width="5"/>
+  </g>
+  <!-- Bell base bar -->
+  <rect x="96" y="320" width="320" height="12" rx="6" fill="#e8e0d0"/>
+  <!-- Bell clapper / bottom arc with lines -->
+  <g>
+    <path d="M208 340 Q256 380 304 340" stroke="#e8e0d0" stroke-width="8" fill="none"/>
+  </g>
+  <!-- Small circle at top of bell (knob) -->
+  <circle cx="256" cy="56" r="12" fill="#e8e0d0"/>
+  <!-- Text -->
+  <text x="256" y="440" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-size="64" fill="#e8e0d0" letter-spacing="4">REMINDR</text>
+</svg>
