@@ -1,0 +1,93 @@
+Remindr Android Reliability Handoff
+Date: 2026-02-17
+Scope: Android reminders/notifications reliability only
+
+Summary
+- You asked for egregious issues and then approved fixes.
+- I implemented the highest-impact Android reliability fixes:
+  1) reschedule reminders after reboot/time changes
+  2) fix reminder offset unit mismatch (minutes vs legacy milliseconds)
+  3) make notification actions (Done/Snooze) actually update DB + alarms
+  4) prevent AI parse crashes from partial/malformed date output
+- I could not run a full Gradle compile in this sandbox due restricted network (wrapper download blocked).
+
+Original High-Impact Findings
+1) No boot/time-change rehydration for alarms (spotty reminders after reboot).
+2) Offset unit mismatch:
+   - AI prompt said reminder_offsets in milliseconds
+   - scheduler interpreted values as minutes.
+3) Notification actions were mostly no-op (toast/cancel only), not updating item state.
+4) AI parse path could crash due forced month/day unwrap.
+
+What Was Changed
+
+1) Boot + time-change rescheduling
+- Added permission and receiver wiring:
+  - remindr/compose-multiplatform/sample/src/androidMain/AndroidManifest.xml
+    - added RECEIVE_BOOT_COMPLETED
+    - registered ReminderRescheduleReceiver with actions:
+      BOOT_COMPLETED, TIME_SET, TIMEZONE_CHANGED, MY_PACKAGE_REPLACED
+- New receiver:
+  - remindr/compose-multiplatform/sample/src/androidMain/kotlin/com/remindr/app/ReminderRescheduleReceiver.kt
+  - On broadcast, loads schedulable items and reschedules via AndroidReminderScheduler.
+- Added repository snapshot helper:
+  - remindr/compose-multiplatform/sample/src/commonMain/kotlin/com/remindr/app/data/db/ItemRepository.kt
+  - getSchedulableItemsSnapshot() returns active, non-archived, timed items.
+
+2) Offset mismatch fix + backward compatibility
+- Prompt now describes offsets as minutes:
+  - remindr/compose-multiplatform/sample/src/commonMain/kotlin/com/remindr/app/data/ai/AiService.kt
+- Scheduler normalization:
+  - remindr/compose-multiplatform/sample/src/androidMain/kotlin/com/remindr/app/AndroidReminderScheduler.kt
+  - If offset >= 60000, treated as legacy milliseconds and converted to minutes.
+  - cancel() attempts both raw and normalized request codes to clear old alarms.
+
+3) Real notification actions
+- Reminder notifications now include Done/Snooze actions:
+  - remindr/compose-multiplatform/sample/src/androidMain/kotlin/com/remindr/app/ReminderReceiver.kt
+- NotificationActionReceiver now performs actual behavior:
+  - remindr/compose-multiplatform/sample/src/androidMain/kotlin/com/remindr/app/NotificationActionReceiver.kt
+  - ACTION_DONE: update status COMPLETED + cancel alarms
+  - ACTION_SNOOZE: cancel existing alarms, move time +10 minutes, persist item, reschedule
+  - ACTION_DELETE: logs dismissal
+  - Uses goAsync() + IO coroutine to avoid broadcast-time ANR risk.
+- Debug notification actions in MainActivity now flagged as test-only:
+  - remindr/compose-multiplatform/sample/src/androidMain/kotlin/com/remindr/app/MainActivity.kt
+  - passes IS_TEST_NOTIFICATION + NOTIFICATION_ID extras.
+
+4) AI parse hardening
+- Removed crash-prone forced unwraps and added sanitizers:
+  - remindr/compose-multiplatform/sample/src/commonMain/kotlin/com/remindr/app/RemindrApp.kt
+  - safeDateOrNull(), safeTimeOrDefault(), safeRecurrenceEndDateOrNull()
+  - catches non-cancellation exceptions in save flow and logs instead of crashing.
+
+Additional Safety
+- ReminderReceiver now guards against SecurityException when posting notification
+  (e.g., notification permission edge cases):
+  - remindr/compose-multiplatform/sample/src/androidMain/kotlin/com/remindr/app/ReminderReceiver.kt
+
+Where I Left Off
+- Code changes are in working tree; no commit created.
+- I did NOT run full compile/tests because Gradle wrapper download failed in restricted network.
+- I intentionally did not touch unrelated user changes outside this scope.
+
+Likely Next Tasks (recommended)
+1) Run build + smoke tests with network enabled:
+   - from remindr/remindr:
+     .\gradlew.bat :compose-multiplatform:sample:compileKotlinAndroid
+2) Device validation checklist:
+   - create reminder for near-future time -> verify fires
+   - test Done action -> item becomes COMPLETED, no repeat alarm
+   - test Snooze action -> alarm rescheduled ~10 min later
+   - reboot device/emulator -> future reminders still fire
+   - change timezone/time -> reminders remain scheduled
+3) Android 12+ exact-alarm UX (still pending):
+   - Add user flow for ACTION_REQUEST_SCHEDULE_EXACT_ALARM when exact alarms unavailable.
+4) Optional security hardening (still pending):
+   - API key currently stored plaintext in KeyValueStore; consider Android Keystore/EncryptedSharedPreferences path.
+
+Notes on Existing Repo State
+- Repo already had many unrelated modified files before/alongside this work.
+- New file added by me:
+  - remindr/compose-multiplatform/sample/src/androidMain/kotlin/com/remindr/app/ReminderRescheduleReceiver.kt
+

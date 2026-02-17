@@ -16,7 +16,7 @@ class AndroidReminderScheduler(private val context: Context) : ReminderScheduler
 
     override fun schedule(item: Item) {
         if (item.time == null) return
-        val offsets = if (item.reminderOffsets.isEmpty()) listOf(0L) else item.reminderOffsets
+        val offsets = normalizedOffsets(item.reminderOffsets)
 
         offsets.forEach { offsetMinutes ->
             val intent = Intent(context, ReminderReceiver::class.java).apply {
@@ -25,7 +25,7 @@ class AndroidReminderScheduler(private val context: Context) : ReminderScheduler
                 putExtra("NAG_ENABLED", item.nagEnabled)
             }
 
-            val requestCode = "${item.id}-$offsetMinutes".hashCode()
+            val requestCode = requestCodeFor(item.id, offsetMinutes)
 
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -35,7 +35,7 @@ class AndroidReminderScheduler(private val context: Context) : ReminderScheduler
             )
 
             val triggerTime = item.time.toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
-            val actualTriggerTime = triggerTime - (offsetMinutes * 60 * 1000)
+            val actualTriggerTime = triggerTime - (offsetMinutes * 60_000L)
 
             if (actualTriggerTime > System.currentTimeMillis()) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -64,9 +64,16 @@ class AndroidReminderScheduler(private val context: Context) : ReminderScheduler
     }
 
     override fun cancel(item: Item) {
-        val offsets = if (item.reminderOffsets.isEmpty()) listOf(0L) else item.reminderOffsets
+        val rawOffsets = if (item.reminderOffsets.isEmpty()) listOf(0L) else item.reminderOffsets
+        val offsets = buildSet {
+            rawOffsets.forEach { raw ->
+                add(raw.coerceAtLeast(0L))
+                add(normalizeOffsetMinutes(raw))
+            }
+        }.ifEmpty { setOf(0L) }
+
         offsets.forEach { offsetMinutes ->
-            val requestCode = "${item.id}-$offsetMinutes".hashCode()
+            val requestCode = requestCodeFor(item.id, offsetMinutes)
             val intent = Intent(context, ReminderReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -76,5 +83,25 @@ class AndroidReminderScheduler(private val context: Context) : ReminderScheduler
             )
             alarmManager.cancel(pendingIntent)
         }
+    }
+
+    private fun normalizedOffsets(offsets: List<Long>): List<Long> {
+        val source = if (offsets.isEmpty()) listOf(0L) else offsets
+        return source
+            .map(::normalizeOffsetMinutes)
+            .distinct()
+    }
+
+    private fun normalizeOffsetMinutes(rawOffset: Long): Long {
+        val positiveOffset = rawOffset.coerceAtLeast(0L)
+        return if (positiveOffset >= 60_000L) {
+            positiveOffset / 60_000L
+        } else {
+            positiveOffset
+        }
+    }
+
+    private fun requestCodeFor(itemId: Long, offsetMinutes: Long): Int {
+        return "$itemId-$offsetMinutes".hashCode()
     }
 }

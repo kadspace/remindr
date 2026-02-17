@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="rainbow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5BBD3B"/>
+      <stop offset="20%" stop-color="#FBBA18"/>
+      <stop offset="40%" stop-color="#F47724"/>
+      <stop offset="60%" stop-color="#E23D39"/>
+      <stop offset="80%" stop-color="#9B59B6"/>
+      <stop offset="100%" stop-color="#1E90FF"/>
+    </linearGradient>
+    <!-- Clip to checkmark stroke area -->
+    <clipPath id="checkstroke">
+      <polyline
+        points="128,276 224,384 400,148"
+        stroke="black"
+        stroke-width="48"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+    </clipPath>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#1a1f1a"/>
+  <!-- Rainbow bands clipped to checkmark stroke, with slits -->
+  <g clip-path="url(#checkstroke)">
+    <rect x="60" y="80" width="400" height="58" fill="#5BBD3B"/>
+    <rect x="60" y="138" width="400" height="58" fill="#FBBA18"/>
+    <rect x="60" y="196" width="400" height="58" fill="#F47724"/>
+    <rect x="60" y="254" width="400" height="58" fill="#E23D39"/>
+    <rect x="60" y="312" width="400" height="58" fill="#9B59B6"/>
+    <rect x="60" y="370" width="400" height="58" fill="#1E90FF"/>
+    <!-- Horizontal slits -->
+    <line x1="60" y1="136" x2="460" y2="136" stroke="#1a1f1a" stroke-width="4"/>
+    <line x1="60" y1="194" x2="460" y2="194" stroke="#1a1f1a" stroke-width="4"/>
+    <line x1="60" y1="252" x2="460" y2="252" stroke="#1a1f1a" stroke-width="4"/>
+    <line x1="60" y1="310" x2="460" y2="310" stroke="#1a1f1a" stroke-width="4"/>
+    <line x1="60" y1="368" x2="460" y2="368" stroke="#1a1f1a" stroke-width="4"/>
+  </g>
+</svg>

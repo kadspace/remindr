@@ -7,6 +7,6 @@ import com.remindr.app.db.RemindrDatabase
 
 actual class DatabaseDriverFactory(private val context: Context) {
     actual fun createDriver(): SqlDriver {
-        return AndroidSqliteDriver(RemindrDatabase.Schema, context, "remindr_v4.db")
+        return AndroidSqliteDriver(RemindrDatabase.Schema, context, "remindr_v6.db")
     }
 }

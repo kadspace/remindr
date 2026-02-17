@@ -5,6 +5,7 @@ import kotlinx.datetime.LocalDateTime
 
 expect fun getToday(): LocalDate
 expect fun getCurrentDateTime(): LocalDateTime
+expect fun getDateTimeAfterMinutes(minutes: Int): LocalDateTime
 
 fun getFormattedTime(): String {
     val now = getCurrentDateTime()

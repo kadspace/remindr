@@ -83,7 +83,7 @@ object Palettes {
     val all = listOf(rosyCopper, ocean, sunset, mono, original)
 }
 
-val activePalette = Palettes.rosyCopper
+val activePalette = Palettes.mono
 
 object Colors {
     val example1Selection = Color(0xFFFCCA3E)
@@ -107,4 +107,7 @@ object Colors {
     val accentSecondary = activePalette.accentSecondary
 
     val noteColors = activePalette.noteColors
+
+    val reminderActiveRed = Color(0xFFB3261E)
+    val reminderDoneGray = Color(0xFF5A5A5A)
 }

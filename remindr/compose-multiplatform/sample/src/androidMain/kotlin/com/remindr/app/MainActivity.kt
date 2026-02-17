@@ -4,13 +4,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.material3.MaterialTheme
 import com.remindr.app.data.db.DatabaseDriverFactory
+import com.remindr.app.data.db.ItemRepository
+import com.remindr.app.db.RemindrDatabase
 import com.remindr.app.ui.theme.RemindrTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 
 class MainActivity : ComponentActivity() {
 
     companion object {
+        private const val MISSED_REMINDER_LOOKBACK_MS = 24L * 60L * 60L * 1000L
         private var staticLogCallback: ((String) -> Unit)? = null
 
         fun logFromReceiver(message: String) {
@@ -19,6 +27,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private var notificationTestCallback: ((String) -> Unit)? = null
+    private var exactAlarmPermissionCallback: ((String) -> Unit)? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
@@ -32,13 +41,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val requestExactAlarmPermissionLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) {
+        val log = exactAlarmPermissionCallback ?: return@registerForActivityResult
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) {
+            log("Exact alarms do not require special access on this Android version.")
+            return@registerForActivityResult
+        }
+
+        val alarmManager = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+        if (alarmManager.canScheduleExactAlarms()) {
+            log("Exact alarm access enabled.")
+        } else {
+            log("Exact alarm access still disabled.")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val driverFactory = DatabaseDriverFactory(applicationContext)
+        val appVersionLabel = resolveAppVersionLabel()
 
         val requestMagicAdd = intent?.action == "ACTION_MAGIC_ADD"
         val scheduler = AndroidReminderScheduler(this)
+        reconcileReminders(scheduler)
 
         setContent {
             MaterialTheme(RemindrTheme) {
@@ -56,7 +84,61 @@ class MainActivity : ComponentActivity() {
                         staticLogCallback = logCallback
                         checkPermissionAndSend(logCallback, isRich = true)
                     },
+                    onRequestExactAlarmPermission = { logCallback ->
+                        staticLogCallback = logCallback
+                        requestExactAlarmPermission(logCallback)
+                    },
+                    appVersionLabel = appVersionLabel,
                 )
+            }
+        }
+    }
+
+    private fun resolveAppVersionLabel(): String {
+        val packageInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageInfo(packageName, 0)
+        }
+
+        val versionName = packageInfo.versionName ?: "unknown"
+        val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toLong()
+        }
+        return "$versionName ($versionCode)"
+    }
+
+    private fun reconcileReminders(scheduler: AndroidReminderScheduler) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val repository = ItemRepository(
+                RemindrDatabase(DatabaseDriverFactory(applicationContext).createDriver()),
+            )
+            val nowMs = System.currentTimeMillis()
+
+            repository.getSchedulableItemsSnapshot().forEach { item ->
+                val dueAt = item.time ?: return@forEach
+                val dueAtMs = dueAt.toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
+
+                if (dueAtMs > nowMs) {
+                    scheduler.schedule(item)
+                    return@forEach
+                }
+
+                if (nowMs - dueAtMs > MISSED_REMINDER_LOOKBACK_MS) return@forEach
+                if (repository.wasMissedReminderReconciled(item.id, dueAt)) return@forEach
+
+                val reminderIntent = android.content.Intent(applicationContext, ReminderReceiver::class.java).apply {
+                    putExtra("ITEM_ID", item.id)
+                    putExtra("ITEM_TEXT", item.text)
+                    putExtra("NAG_ENABLED", item.nagEnabled)
+                }
+                applicationContext.sendBroadcast(reminderIntent)
+                repository.markMissedReminderReconciled(item.id, dueAt)
+                logFromReceiver("Recovered missed reminder: ${item.id}")
             }
         }
     }
@@ -74,13 +156,43 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestExactAlarmPermission(log: (String) -> Unit) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) {
+            log("Exact alarms do not require special access on this Android version.")
+            return
+        }
+
+        val alarmManager = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+        if (alarmManager.canScheduleExactAlarms()) {
+            log("Exact alarm access already enabled.")
+            return
+        }
+
+        exactAlarmPermissionCallback = log
+        val requestIntent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+            data = android.net.Uri.parse("package:$packageName")
+        }
+
+        try {
+            log("Opening exact alarm settings...")
+            requestExactAlarmPermissionLauncher.launch(requestIntent)
+        } catch (_: android.content.ActivityNotFoundException) {
+            val appDetailsIntent = android.content.Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.fromParts("package", packageName, null),
+            )
+            requestExactAlarmPermissionLauncher.launch(appDetailsIntent)
+        }
+    }
+
     private fun sendRichNotification(log: (String) -> Unit) {
         log("Preparing RICH notification...")
         createNotificationChannel(log)
 
         val snoozeIntent = android.content.Intent(this, NotificationActionReceiver::class.java).apply {
             action = "ACTION_SNOOZE"
-            putExtra("ITEM_ID", 2)
+            putExtra("IS_TEST_NOTIFICATION", true)
+            putExtra("NOTIFICATION_ID", 2)
         }
         val snoozePendingIntent = android.app.PendingIntent.getBroadcast(
             this, 101, snoozeIntent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
@@ -88,7 +200,8 @@ class MainActivity : ComponentActivity() {
 
         val doneIntent = android.content.Intent(this, NotificationActionReceiver::class.java).apply {
             action = "ACTION_DONE"
-            putExtra("ITEM_ID", 2)
+            putExtra("IS_TEST_NOTIFICATION", true)
+            putExtra("NOTIFICATION_ID", 2)
         }
         val donePendingIntent = android.app.PendingIntent.getBroadcast(
             this, 102, doneIntent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
@@ -96,7 +209,8 @@ class MainActivity : ComponentActivity() {
 
         val deleteIntent = android.content.Intent(this, NotificationActionReceiver::class.java).apply {
             action = "ACTION_DELETE"
-            putExtra("ITEM_ID", 2)
+            putExtra("IS_TEST_NOTIFICATION", true)
+            putExtra("NOTIFICATION_ID", 2)
         }
         val deletePendingIntent = android.app.PendingIntent.getBroadcast(
             this, 103, deleteIntent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,

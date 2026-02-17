@@ -14,3 +14,8 @@ actual fun getCurrentDateTime(): LocalDateTime {
     val now = JavaLocalDateTime.now()
     return LocalDateTime(now.year, now.monthValue, now.dayOfMonth, now.hour, now.minute, now.second)
 }
+
+actual fun getDateTimeAfterMinutes(minutes: Int): LocalDateTime {
+    val next = JavaLocalDateTime.now().plusMinutes(minutes.toLong())
+    return LocalDateTime(next.year, next.monthValue, next.dayOfMonth, next.hour, next.minute, next.second)
+}

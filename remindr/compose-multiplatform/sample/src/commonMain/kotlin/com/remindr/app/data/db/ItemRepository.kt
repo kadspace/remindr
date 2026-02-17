@@ -1,205 +1,269 @@
 package com.remindr.app.data.db
 
-import com.remindr.app.data.model.Group
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
+import androidx.compose.ui.graphics.Color
 import com.remindr.app.data.model.Item
 import com.remindr.app.data.model.ItemStatus
 import com.remindr.app.data.model.ItemType
 import com.remindr.app.data.model.Severity
 import com.remindr.app.db.RemindrDatabase
 import com.remindr.app.util.getCurrentDateTime
-import com.remindr.app.util.getToday
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
-import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToList
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
+import kotlinx.datetime.atTime
+import kotlinx.datetime.plus
 
 class ItemRepository(database: RemindrDatabase) {
-    private val itemQueries = database.itemTableQueries
-    private val groupQueries = database.groupTableQueries
+    private val seriesQueries = database.reminderSeriesQueries
+    private val occurrenceQueries = database.reminderOccurrenceQueries
     private val settingsQueries = database.keyValueStoreQueries
 
-    // === Items ===
+    private data class JoinedOccurrence(
+        val occurrenceId: Long,
+        val seriesId: Long,
+        val dueAt: String,
+        val state: String,
+        val completedAt: String?,
+        val snoozedUntil: String?,
+        val reminderOffsetMinutes: Long,
+        val occurrenceCreatedAt: String,
+        val occurrenceUpdatedAt: String,
+        val seriesTitle: String,
+        val seriesNotes: String?,
+        val seriesStartAt: String,
+        val seriesTimezone: String,
+        val recurrenceKind: String,
+        val recurrenceInterval: Long,
+        val byWeekday: Long?,
+        val byMonthDay: Long?,
+        val endMode: String,
+        val endAt: String?,
+        val endCount: Long?,
+        val generatedCount: Long,
+        val reminderOffsets: String,
+        val seriesIsActive: Long,
+        val seriesArchivedAt: String?,
+        val seriesCreatedAt: String,
+        val seriesUpdatedAt: String,
+    )
 
     fun getAllItems(): Flow<List<Item>> {
-        return itemQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { rows ->
-            rows.map { it.toItem() }
-        }
-    }
-
-    fun getItemsByDate(targetDate: String): Flow<List<Item>> {
-        return itemQueries.selectByDate(targetDate).asFlow().mapToList(Dispatchers.IO).map { rows ->
-            rows.map { it.toItem() }
-        }
-    }
-
-    fun getItemsByGroupId(groupId: Long): Flow<List<Item>> {
-        return itemQueries.selectByGroupId(groupId).asFlow().mapToList(Dispatchers.IO).map { rows ->
-            rows.map { it.toItem() }
-        }
-    }
-
-    fun getItemsByStatus(status: String): Flow<List<Item>> {
-        return itemQueries.selectByStatus(status).asFlow().mapToList(Dispatchers.IO).map { rows ->
-            rows.map { it.toItem() }
-        }
-    }
-
-    fun getItemsByType(type: String): Flow<List<Item>> {
-        return itemQueries.selectByType(type).asFlow().mapToList(Dispatchers.IO).map { rows ->
-            rows.map { it.toItem() }
-        }
-    }
-
-    fun getUpcomingItems(startDate: String, endDate: String): Flow<List<Item>> {
-        return getAllItems().map { items ->
-            items.filter { item ->
-                val date = item.time?.date?.toString()
-                date != null && date >= startDate && date <= endDate
-                    && item.status != ItemStatus.COMPLETED && item.status != ItemStatus.ARCHIVED
-            }
-        }
-    }
-
-    fun getOverdueItems(today: String): Flow<List<Item>> {
-        return getAllItems().map { items ->
-            items.filter { item ->
-                val date = item.time?.date?.toString()
-                date != null && date < today
-                    && item.status != ItemStatus.COMPLETED && item.status != ItemStatus.ARCHIVED
-            }
-        }
-    }
-
-    fun getItemsWithAmounts(): Flow<List<Item>> {
-        return getAllItems().map { items ->
-            items.filter { it.amount != null && it.status != ItemStatus.ARCHIVED }
+        return selectAllJoinedQuery().asFlow().mapToList(Dispatchers.IO).map { rows ->
+            rows.map(::joinedToItem)
         }
     }
 
     fun getItemById(id: Long): Item? {
-        val row = itemQueries.selectById(id).executeAsOneOrNull() ?: return null
-        return row.toItem()
+        return selectJoinedByOccurrenceIdQuery(id).executeAsOneOrNull()?.let(::joinedToItem)
+    }
+
+    fun getSchedulableItemsSnapshot(): List<Item> {
+        return selectSchedulableJoinedQuery().executeAsList().map(::joinedToItem)
+    }
+
+    fun getNextOpenItemForSeries(seriesId: Long): Item? {
+        return selectFirstOpenJoinedBySeriesIdQuery(seriesId).executeAsOneOrNull()?.let(::joinedToItem)
     }
 
     fun insert(item: Item) {
-        itemQueries.insert(
+        val now = getCurrentDateTime()
+        val dueAt = item.time ?: now
+        val recurrenceKind = normalizedRecurrenceKind(item.recurrenceType)
+        val recurrenceInterval = item.recurrenceInterval.coerceAtLeast(1).toLong()
+        val byWeekday = if (recurrenceKind == recurrenceWeekly) {
+            (dueAt.date.dayOfWeek.ordinal + 1).toLong()
+        } else {
+            null
+        }
+        val byMonthDay = if (recurrenceKind == recurrenceMonthly || recurrenceKind == recurrenceYearly) {
+            dueAt.date.day.toLong()
+        } else {
+            null
+        }
+        val endMode = when {
+            recurrenceKind == recurrenceNone -> endModeNever
+            item.recurrenceEndMode == endModeAfterCount -> endModeAfterCount
+            item.recurrenceEndDate != null -> endModeUntilDate
+            else -> endModeNever
+        }
+        val isActive = if (item.status == ItemStatus.ARCHIVED) 0L else 1L
+        val archivedAt = if (isActive == 0L) now.toString() else null
+        val reminderOffsets = normalizeOffsets(item.reminderOffsets).joinToString(",")
+
+        seriesQueries.insert(
             title = item.title,
-            description = item.description,
-            time = item.time?.toString(),
-            date = item.time?.date?.toString(),
-            end_date = item.endDate?.toString(),
-            color = item.color.toArgb().toLong(),
-            severity = item.severity.name,
-            type = item.type.name,
-            status = item.status.name,
-            group_id = item.groupId,
-            parent_id = item.parentId,
-            amount = item.amount,
-            recurrence_type = item.recurrenceType,
-            recurrence_end_date = item.recurrenceEndDate?.toString(),
-            recurrence_rule = item.recurrenceRule,
-            nag_enabled = if (item.nagEnabled) 1L else 0L,
-            last_completed_at = item.lastCompletedAt?.toString(),
+            notes = item.description,
+            start_at = dueAt.toString(),
+            timezone = "SYSTEM",
+            recurrence_kind = recurrenceKind,
+            recurrence_interval = recurrenceInterval,
+            by_weekday = byWeekday,
+            by_month_day = byMonthDay,
+            end_mode = endMode,
+            end_at = item.recurrenceEndDate?.toString(),
+            end_count = null,
+            generated_count = 1L,
+            reminder_offsets = reminderOffsets,
+            is_active = isActive,
+            archived_at = archivedAt,
+            created_at = now.toString(),
+            updated_at = now.toString(),
+        )
+
+        val seriesId = seriesQueries.selectLast().executeAsOneOrNull()?.id ?: return
+        val initialState = when (item.status) {
+            ItemStatus.COMPLETED -> occurrenceCompleted
+            ItemStatus.ARCHIVED -> occurrenceCancelled
+            else -> if (item.snoozedUntil != null) occurrenceSnoozed else occurrencePending
+        }
+
+        occurrenceQueries.insert(
+            series_id = seriesId,
+            due_at = dueAt.toString(),
+            state = initialState,
+            completed_at = if (initialState == occurrenceCompleted) now.toString() else null,
             snoozed_until = item.snoozedUntil?.toString(),
-            reminder_offsets = item.reminderOffsets.joinToString(","),
-            created_at = item.createdAt.toString(),
+            reminder_offset_minutes = 0L,
+            created_at = now.toString(),
+            updated_at = now.toString(),
         )
     }
 
     fun update(item: Item) {
-        itemQueries.update(
+        val current = selectJoinedByOccurrenceIdQuery(item.id).executeAsOneOrNull() ?: return
+        val now = getCurrentDateTime()
+        val dueAt = item.time ?: LocalDateTime.parse(current.dueAt)
+        val recurrenceKind = normalizedRecurrenceKind(item.recurrenceType ?: current.recurrenceKind)
+        val recurrenceInterval = item.recurrenceInterval.coerceAtLeast(1).toLong()
+        val endMode = when {
+            recurrenceKind == recurrenceNone -> endModeNever
+            item.recurrenceEndMode == endModeAfterCount -> endModeAfterCount
+            item.recurrenceEndDate != null -> endModeUntilDate
+            else -> item.recurrenceEndMode.ifBlank { current.endMode }
+        }
+        val isActive = if (item.status == ItemStatus.ARCHIVED) 0L else 1L
+        val archivedAt = if (isActive == 0L) now.toString() else null
+        val byWeekday = if (recurrenceKind == recurrenceWeekly) {
+            (dueAt.date.dayOfWeek.ordinal + 1).toLong()
+        } else {
+            null
+        }
+        val byMonthDay = if (recurrenceKind == recurrenceMonthly || recurrenceKind == recurrenceYearly) {
+            dueAt.date.day.toLong()
+        } else {
+            null
+        }
+
+        seriesQueries.updateCore(
             title = item.title,
-            description = item.description,
-            time = item.time?.toString(),
-            date = item.time?.date?.toString(),
-            end_date = item.endDate?.toString(),
-            color = item.color.toArgb().toLong(),
-            severity = item.severity.name,
-            type = item.type.name,
-            status = item.status.name,
-            group_id = item.groupId,
-            parent_id = item.parentId,
-            amount = item.amount,
-            recurrence_type = item.recurrenceType,
-            recurrence_end_date = item.recurrenceEndDate?.toString(),
-            recurrence_rule = item.recurrenceRule,
-            nag_enabled = if (item.nagEnabled) 1L else 0L,
-            last_completed_at = item.lastCompletedAt?.toString(),
+            notes = item.description,
+            start_at = current.seriesStartAt,
+            recurrence_kind = recurrenceKind,
+            recurrence_interval = recurrenceInterval,
+            by_weekday = byWeekday,
+            by_month_day = byMonthDay,
+            end_mode = endMode,
+            end_at = item.recurrenceEndDate?.toString(),
+            end_count = current.endCount,
+            reminder_offsets = normalizeOffsets(item.reminderOffsets.ifEmpty { parseOffsets(current.reminderOffsets) }).joinToString(","),
+            is_active = isActive,
+            archived_at = archivedAt,
+            updated_at = now.toString(),
+            id = current.seriesId,
+        )
+
+        val newState = when {
+            isActive == 0L -> occurrenceCancelled
+            item.status == ItemStatus.COMPLETED -> occurrenceCompleted
+            item.snoozedUntil != null -> occurrenceSnoozed
+            else -> occurrencePending
+        }
+
+        occurrenceQueries.updateCore(
+            due_at = dueAt.toString(),
+            state = newState,
             snoozed_until = item.snoozedUntil?.toString(),
-            reminder_offsets = item.reminderOffsets.joinToString(","),
+            updated_at = now.toString(),
             id = item.id,
         )
     }
 
     fun updateStatus(id: Long, status: ItemStatus) {
+        val current = selectJoinedByOccurrenceIdQuery(id).executeAsOneOrNull() ?: return
         val now = getCurrentDateTime()
-        itemQueries.updateStatus(
-            status = status.name,
-            last_completed_at = if (status == ItemStatus.COMPLETED) now.toString() else null,
-            id = id,
-        )
-    }
 
-    fun deleteById(id: Long) {
-        itemQueries.delete(id)
-    }
+        when (status) {
+            ItemStatus.COMPLETED -> {
+                occurrenceQueries.markCompleted(
+                    completed_at = now.toString(),
+                    updated_at = now.toString(),
+                    id = id,
+                )
+                generateNextOccurrenceIfNeeded(current, now)
+            }
 
-    fun getLastInsertedItemId(): Long? {
-        return itemQueries.selectLast().executeAsOneOrNull()?.id
-    }
+            ItemStatus.ARCHIVED -> {
+                seriesQueries.setActive(
+                    is_active = 0L,
+                    archived_at = now.toString(),
+                    updated_at = now.toString(),
+                    id = current.seriesId,
+                )
+                occurrenceQueries.cancelOpenBySeriesId(
+                    updated_at = now.toString(),
+                    seriesId = current.seriesId,
+                )
+            }
 
-    // === Groups ===
+            else -> {
+                val hasDifferentOpenOccurrence = selectFirstOpenJoinedBySeriesIdQuery(current.seriesId)
+                    .executeAsOneOrNull()
+                    ?.occurrenceId
+                    ?.let { openId -> openId != id }
+                    ?: false
 
-    fun getAllGroups(): Flow<List<Group>> {
-        return groupQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { rows ->
-            rows.map { it.toGroup() }
+                val reopeningCompletedRecurringHistory =
+                    status == ItemStatus.PENDING &&
+                    current.state == occurrenceCompleted &&
+                    current.recurrenceKind != recurrenceNone &&
+                    hasDifferentOpenOccurrence
+
+                if (reopeningCompletedRecurringHistory) {
+                    // Keep past recurring instances immutable once the next occurrence exists.
+                    return
+                }
+
+                seriesQueries.setActive(
+                    is_active = 1L,
+                    archived_at = null,
+                    updated_at = now.toString(),
+                    id = current.seriesId,
+                )
+                occurrenceQueries.markPending(
+                    updated_at = now.toString(),
+                    id = id,
+                )
+            }
         }
     }
 
-    fun getGroupById(id: Long): Group? {
-        val row = groupQueries.selectById(id).executeAsOneOrNull() ?: return null
-        return row.toGroup()
+    fun archiveById(id: Long) {
+        updateStatus(id, ItemStatus.ARCHIVED)
     }
 
-    fun getGroupByName(name: String): Group? {
-        val row = groupQueries.selectByName(name).executeAsOneOrNull() ?: return null
-        return row.toGroup()
+    @Deprecated("Use archiveById to preserve reminder history.")
+    fun deleteById(id: Long) {
+        archiveById(id)
     }
 
-    fun insertGroup(group: Group) {
-        groupQueries.insert(
-            name = group.name,
-            icon = group.icon,
-            description = group.description,
-            created_at = group.createdAt.toString(),
-            updated_at = group.updatedAt.toString(),
-        )
+    fun getLastInsertedItemId(): Long? {
+        return occurrenceQueries.selectLast().executeAsOneOrNull()?.id
     }
-
-    fun updateGroup(group: Group) {
-        groupQueries.update(
-            name = group.name,
-            icon = group.icon,
-            description = group.description,
-            updated_at = group.updatedAt.toString(),
-            id = group.id,
-        )
-    }
-
-    fun deleteGroup(id: Long) {
-        groupQueries.delete(id)
-    }
-
-    fun getLastInsertedGroupId(): Long? {
-        return groupQueries.selectLast().executeAsOneOrNull()?.id
-    }
-
-    // === Settings ===
 
     fun getApiKey(): String? {
         return settingsQueries.get("gemini_api_key").executeAsOneOrNull()
@@ -209,55 +273,240 @@ class ItemRepository(database: RemindrDatabase) {
         settingsQueries.upsert("gemini_api_key", key)
     }
 
-    fun getEventTypeLabels(): List<String> {
-        val saved = settingsQueries.get("event_type_labels").executeAsOneOrNull()
-        return if (saved != null) {
-            saved.split("|||").filter { it.isNotBlank() }
-        } else {
-            listOf("Work", "Critical", "Personal", "Health", "Misc")
+    fun wasMissedReminderReconciled(itemId: Long, scheduledTime: LocalDateTime): Boolean {
+        val key = reminderReconcileKey(itemId, scheduledTime)
+        return settingsQueries.get(key).executeAsOneOrNull() == "1"
+    }
+
+    fun markMissedReminderReconciled(itemId: Long, scheduledTime: LocalDateTime) {
+        val key = reminderReconcileKey(itemId, scheduledTime)
+        settingsQueries.upsert(key, "1")
+    }
+
+    private fun generateNextOccurrenceIfNeeded(current: JoinedOccurrence, now: LocalDateTime) {
+        if (current.recurrenceKind == recurrenceNone || current.seriesIsActive != 1L) return
+
+        if (current.endMode == endModeAfterCount && current.endCount != null && current.generatedCount >= current.endCount) {
+            return
+        }
+
+        val dueAt = LocalDateTime.parse(current.dueAt)
+        val recurrenceInterval = current.recurrenceInterval.coerceAtLeast(1L).toInt()
+        val nextDue = nextDueAfter(
+            from = dueAt,
+            now = now,
+            recurrenceKind = current.recurrenceKind,
+            recurrenceInterval = recurrenceInterval,
+            byWeekday = current.byWeekday?.toInt(),
+            byMonthDay = current.byMonthDay?.toInt(),
+        ) ?: return
+
+        val endAt = current.endAt?.let(LocalDateTime::parse)
+        if (current.endMode == endModeUntilDate && endAt != null && nextDue > endAt) {
+            return
+        }
+
+        occurrenceQueries.insert(
+            series_id = current.seriesId,
+            due_at = nextDue.toString(),
+            state = occurrencePending,
+            completed_at = null,
+            snoozed_until = null,
+            reminder_offset_minutes = 0L,
+            created_at = now.toString(),
+            updated_at = now.toString(),
+        )
+        seriesQueries.setGeneratedCount(
+            generated_count = current.generatedCount + 1L,
+            updated_at = now.toString(),
+            id = current.seriesId,
+        )
+    }
+
+    private fun nextDueAfter(
+        from: LocalDateTime,
+        now: LocalDateTime,
+        recurrenceKind: String,
+        recurrenceInterval: Int,
+        byWeekday: Int?,
+        byMonthDay: Int?,
+    ): LocalDateTime? {
+        var next = advance(
+            from = from,
+            recurrenceKind = recurrenceKind,
+            recurrenceInterval = recurrenceInterval,
+            byWeekday = byWeekday,
+            byMonthDay = byMonthDay,
+        ) ?: return null
+
+        while (next <= now) {
+            next = advance(
+                from = next,
+                recurrenceKind = recurrenceKind,
+                recurrenceInterval = recurrenceInterval,
+                byWeekday = byWeekday,
+                byMonthDay = byMonthDay,
+            ) ?: return null
+        }
+        return next
+    }
+
+    private fun advance(
+        from: LocalDateTime,
+        recurrenceKind: String,
+        recurrenceInterval: Int,
+        byWeekday: Int?,
+        byMonthDay: Int?,
+    ): LocalDateTime? {
+        return when (recurrenceKind) {
+            recurrenceDaily -> from.date.plus(DatePeriod(days = recurrenceInterval)).atTime(from.time)
+            recurrenceWeekly -> {
+                val targetWeekday = (byWeekday ?: (from.date.dayOfWeek.ordinal + 1)).coerceIn(1, 7)
+                val base = from.date.plus(DatePeriod(days = 7 * recurrenceInterval))
+                val baseIso = base.dayOfWeek.ordinal + 1
+                val delta = targetWeekday - baseIso
+                base.plus(DatePeriod(days = delta)).atTime(from.time)
+            }
+            recurrenceMonthly -> {
+                val moved = addMonths(from.date, recurrenceInterval)
+                val targetDay = (byMonthDay ?: from.date.day).coerceIn(1, 31)
+                clampDay(moved.year, moved.monthNumber, targetDay).atTime(from.time)
+            }
+            recurrenceYearly -> {
+                val targetDay = (byMonthDay ?: from.date.day).coerceIn(1, 31)
+                val targetYear = from.date.year + recurrenceInterval
+                clampDay(targetYear, from.date.monthNumber, targetDay).atTime(from.time)
+            }
+            else -> null
         }
     }
 
-    fun saveEventTypeLabels(labels: List<String>) {
-        val joined = labels.joinToString("|||")
-        settingsQueries.upsert("event_type_labels", joined)
+    private fun addMonths(date: LocalDate, months: Int): LocalDate {
+        var year = date.year
+        var month = date.monthNumber + months
+        while (month > 12) {
+            year += 1
+            month -= 12
+        }
+        while (month < 1) {
+            year -= 1
+            month += 12
+        }
+        return clampDay(year, month, date.day)
     }
 
-    // === Mappers ===
+    private fun clampDay(year: Int, month: Int, preferredDay: Int): LocalDate {
+        for (day in preferredDay.coerceIn(1, 31) downTo 1) {
+            val date = runCatching { LocalDate(year, month, day) }.getOrNull()
+            if (date != null) return date
+        }
+        return LocalDate(year, month, 1)
+    }
 
-    private fun com.remindr.app.db.Item.toItem(): Item {
+    private fun joinedToItem(row: JoinedOccurrence): Item {
+        val dueAt = LocalDateTime.parse(row.snoozedUntil ?: row.dueAt)
+        val status = when {
+            row.seriesIsActive != 1L -> ItemStatus.ARCHIVED
+            row.state == occurrenceCompleted -> ItemStatus.COMPLETED
+            row.state == occurrenceCancelled -> ItemStatus.ARCHIVED
+            else -> ItemStatus.PENDING
+        }
+        val recurrenceType = row.recurrenceKind.takeUnless { it == recurrenceNone }
+
         return Item(
-            id = id,
-            title = title,
-            description = description,
-            time = time?.let { LocalDateTime.parse(it) },
-            endDate = end_date?.let { LocalDateTime.parse(it) },
-            color = Color(color.toInt()),
-            severity = try { Severity.valueOf(severity) } catch (_: Exception) { Severity.MEDIUM },
-            type = try { ItemType.valueOf(type) } catch (_: Exception) { ItemType.TASK },
-            status = try { ItemStatus.valueOf(status) } catch (_: Exception) { ItemStatus.PENDING },
-            groupId = group_id,
-            parentId = parent_id,
-            amount = amount,
-            recurrenceType = recurrence_type,
-            recurrenceEndDate = recurrence_end_date?.let { LocalDateTime.parse(it) },
-            recurrenceRule = recurrence_rule,
-            nagEnabled = nag_enabled == 1L,
-            lastCompletedAt = last_completed_at?.let { LocalDateTime.parse(it) },
-            snoozedUntil = snoozed_until?.let { LocalDateTime.parse(it) },
-            reminderOffsets = reminder_offsets?.split(",")?.mapNotNull { it.toLongOrNull() } ?: emptyList(),
-            createdAt = LocalDateTime.parse(created_at),
+            id = row.occurrenceId,
+            title = row.seriesTitle,
+            description = row.seriesNotes,
+            time = dueAt,
+            endDate = null,
+            color = neutralColor,
+            severity = Severity.MEDIUM,
+            type = ItemType.TASK,
+            status = status,
+            groupId = null,
+            parentId = row.seriesId,
+            amount = null,
+            recurrenceType = recurrenceType,
+            recurrenceInterval = row.recurrenceInterval.toInt().coerceAtLeast(1),
+            recurrenceEndMode = row.endMode,
+            recurrenceEndDate = row.endAt?.let { LocalDateTime.parse(it) },
+            recurrenceRule = null,
+            nagEnabled = false,
+            lastCompletedAt = row.completedAt?.let { LocalDateTime.parse(it) },
+            snoozedUntil = row.snoozedUntil?.let { LocalDateTime.parse(it) },
+            reminderOffsets = parseOffsets(row.reminderOffsets),
+            createdAt = LocalDateTime.parse(row.occurrenceCreatedAt),
         )
     }
 
-    private fun com.remindr.app.db.GroupTable.toGroup(): Group {
-        return Group(
-            id = id,
-            name = name,
-            icon = icon,
-            description = description,
-            createdAt = LocalDateTime.parse(created_at),
-            updatedAt = LocalDateTime.parse(updated_at),
+    private fun selectAllJoinedQuery() = occurrenceQueries.selectAllJoined(
+        mapper = ::JoinedOccurrence,
+    )
+
+    private fun selectSchedulableJoinedQuery() = occurrenceQueries.selectSchedulableJoined(
+        mapper = ::JoinedOccurrence,
+    )
+
+    private fun selectJoinedByOccurrenceIdQuery(occurrenceId: Long) =
+        occurrenceQueries.selectJoinedByOccurrenceId(
+            id = occurrenceId,
+            mapper = ::JoinedOccurrence,
         )
+
+    private fun selectFirstOpenJoinedBySeriesIdQuery(seriesId: Long) =
+        occurrenceQueries.selectFirstOpenJoinedBySeriesId(
+            seriesId = seriesId,
+            mapper = ::JoinedOccurrence,
+        )
+
+    private fun normalizedRecurrenceKind(recurrenceType: String?): String {
+        val raw = recurrenceType?.uppercase()?.trim().orEmpty()
+        return when (raw) {
+            recurrenceDaily,
+            recurrenceWeekly,
+            recurrenceMonthly,
+            recurrenceYearly,
+            -> raw
+
+            else -> recurrenceNone
+        }
+    }
+
+    private fun parseOffsets(serialized: String): List<Long> {
+        return serialized
+            .split(",")
+            .mapNotNull { value -> value.trim().toLongOrNull() }
+            .map { offset -> offset.coerceAtLeast(0L) }
+            .ifEmpty { listOf(0L) }
+    }
+
+    private fun normalizeOffsets(offsets: List<Long>): List<Long> {
+        return offsets
+            .ifEmpty { listOf(0L) }
+            .map { offset -> offset.coerceAtLeast(0L) }
+            .distinct()
+    }
+
+    private fun reminderReconcileKey(itemId: Long, scheduledTime: LocalDateTime): String {
+        return "reminder_reconciled_${itemId}_${scheduledTime}"
+    }
+
+    private companion object {
+        val neutralColor = Color(0xFF8A8A8A)
+
+        const val recurrenceNone = "NONE"
+        const val recurrenceDaily = "DAILY"
+        const val recurrenceWeekly = "WEEKLY"
+        const val recurrenceMonthly = "MONTHLY"
+        const val recurrenceYearly = "YEARLY"
+
+        const val endModeNever = "NEVER"
+        const val endModeUntilDate = "UNTIL_DATE"
+        const val endModeAfterCount = "AFTER_COUNT"
+
+        const val occurrencePending = "PENDING"
+        const val occurrenceSnoozed = "SNOOZED"
+        const val occurrenceCompleted = "COMPLETED"
+        const val occurrenceCancelled = "CANCELLED"
     }
 }

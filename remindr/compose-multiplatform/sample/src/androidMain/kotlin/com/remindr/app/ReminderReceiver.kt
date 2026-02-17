@@ -32,7 +32,12 @@ class ReminderReceiver : BroadcastReceiver() {
             return
         }
 
-        showNotification(context, item)
+        try {
+            showNotification(context, item)
+        } catch (_: SecurityException) {
+            MainActivity.logFromReceiver("Notification permission missing for item: ${item.id}")
+            return
+        }
 
         if (item.nagEnabled) {
             val javaNow = java.time.LocalDateTime.now()
@@ -81,6 +86,37 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val donePendingIntent = PendingIntent.getBroadcast(
+            context,
+            "${item.id}-done".hashCode(),
+            Intent(context, NotificationActionReceiver::class.java).apply {
+                action = "ACTION_DONE"
+                putExtra("ITEM_ID", item.id)
+                putExtra("NOTIFICATION_ID", item.id.toInt())
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val snoozePendingIntent = PendingIntent.getBroadcast(
+            context,
+            "${item.id}-snooze".hashCode(),
+            Intent(context, NotificationActionReceiver::class.java).apply {
+                action = "ACTION_SNOOZE"
+                putExtra("ITEM_ID", item.id)
+                putExtra("NOTIFICATION_ID", item.id.toInt())
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val deletePendingIntent = PendingIntent.getBroadcast(
+            context,
+            "${item.id}-delete".hashCode(),
+            Intent(context, NotificationActionReceiver::class.java).apply {
+                action = "ACTION_DELETE"
+                putExtra("ITEM_ID", item.id)
+                putExtra("NOTIFICATION_ID", item.id.toInt())
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
         val iconId = context.resources.getIdentifier("ic_launcher", "mipmap", context.packageName)
 
         val color = when (item.severity) {
@@ -97,9 +133,12 @@ class ReminderReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(contentPendingIntent)
             .setAutoCancel(true)
+            .setDeleteIntent(deletePendingIntent)
             .setColor(color)
             .setColorized(true)
             .setLights(color, 500, 2000)
+            .addAction(android.R.drawable.ic_media_pause, "Snooze 10m", snoozePendingIntent)
+            .addAction(android.R.drawable.checkbox_on_background, "Done", donePendingIntent)
 
         notificationManager.notify(item.id.toInt(), notificationBuilder.build())
     }

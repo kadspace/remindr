@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.kizitonwose.remindr.core.CalendarDay
 import com.kizitonwose.remindr.core.DayPosition
 import com.remindr.app.data.model.Item
+import com.remindr.app.data.model.ItemStatus
 import com.remindr.app.ui.theme.Colors
 
 private val itemBackgroundColor: Color = Colors.example5ItemViewBgColor
@@ -73,12 +74,17 @@ fun DayCell(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             items.take(maxLines).forEach { item ->
+                val isDoneOrArchived = item.status == ItemStatus.COMPLETED || item.status == ItemStatus.ARCHIVED
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(3.dp)
                         .background(
-                            color = item.color,
+                            color = if (isDoneOrArchived) {
+                                Colors.reminderDoneGray.copy(alpha = 0.7f)
+                            } else {
+                                Colors.reminderActiveRed.copy(alpha = 0.9f)
+                            },
                             shape = RoundedCornerShape(1.dp),
                         ),
                 )

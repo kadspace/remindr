@@ -6,8 +6,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.remindr.app.data.model.Item
 import com.remindr.app.data.model.ItemStatus
-import com.remindr.app.data.model.ItemType
 import com.remindr.app.ui.theme.Colors
 
 private val pageBackgroundColor: Color = Colors.example5PageBgColor
@@ -27,21 +31,21 @@ private val itemBackgroundColor: Color = Colors.example5ItemViewBgColor
 @Composable
 fun LazyItemScope.ItemRow(
     item: Item,
-    onDelete: () -> Unit,
+    onArchive: () -> Unit,
     onStatusChange: (ItemStatus) -> Unit,
-    showGroupBadge: Boolean = false,
-    groupName: String? = null,
+    onSnooze: (Int) -> Unit,
 ) {
     val isCompleted = item.isCompleted
+    val isDoneOrArchived = item.status == ItemStatus.COMPLETED || item.status == ItemStatus.ARCHIVED
+    val titleColor = if (isDoneOrArchived) Colors.reminderDoneGray else Colors.reminderActiveRed
 
     Row(
         modifier = Modifier
-            .fillParentMaxWidth()
+            .fillMaxWidth()
             .height(IntrinsicSize.Max),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Checkbox
         Box(
             modifier = Modifier
                 .background(color = itemBackgroundColor)
@@ -55,118 +59,102 @@ fun LazyItemScope.ItemRow(
                     onStatusChange(if (checked) ItemStatus.COMPLETED else ItemStatus.PENDING)
                 },
                 colors = CheckboxDefaults.colors(
-                    checkedColor = item.color,
+                    checkedColor = Colors.accent,
                     uncheckedColor = Color.Gray,
                     checkmarkColor = Color.White,
                 ),
             )
         }
 
-        // Color + time block
         Box(
             modifier = Modifier
-                .background(color = item.color)
-                .fillParentMaxWidth(1 / 7f)
-                .aspectRatio(1f),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (item.time != null) {
-                    Text(
-                        text = "${item.time.hour}:${item.time.minute.toString().padStart(2, '0')}",
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        fontSize = 12.sp,
-                    )
-                }
-                if (item.amount != null) {
-                    Text(
-                        text = "$${item.amount.toInt()}",
-                        fontSize = 9.sp,
-                        color = Color.White.copy(alpha = 0.8f),
-                    )
-                }
-            }
-        }
-
-        // Content
-        Box(
-            modifier = Modifier
-                .background(color = if (isCompleted) itemBackgroundColor.copy(alpha = 0.5f) else itemBackgroundColor)
+                .background(
+                    color = if (isDoneOrArchived) itemBackgroundColor.copy(alpha = 0.88f) else itemBackgroundColor,
+                )
                 .weight(1f)
                 .fillMaxHeight()
                 .padding(8.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Column {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                Text(
+                    text = item.title,
+                    color = titleColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = if (isCompleted) TextDecoration.LineThrough else null,
+                )
+                Text(
+                    text = item.dueSummary,
+                    fontSize = 11.sp,
+                    color = Colors.example5TextGreyLight,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                item.recurrenceSummary?.let { recurrence ->
                     Text(
-                        text = item.text,
-                        color = if (isCompleted) Color.Gray else Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        textDecoration = if (isCompleted) TextDecoration.LineThrough else null,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    // Type chip
-                    if (item.type != ItemType.TASK) {
-                        Text(
-                            text = item.type.name,
-                            fontSize = 8.sp,
-                            color = Color.White,
-                            modifier = Modifier
-                                .background(Color.Gray.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
-                        )
-                    }
-                }
-                if (showGroupBadge && groupName != null) {
-                    Text(
-                        text = groupName,
+                        text = recurrence,
                         fontSize = 10.sp,
-                        color = Color.Gray,
+                        color = Colors.example5TextGreyLight,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
-                // Status chip if not PENDING
                 if (item.status != ItemStatus.PENDING && item.status != ItemStatus.COMPLETED) {
                     Text(
                         text = item.status.name.replace("_", " "),
                         fontSize = 9.sp,
-                        color = when (item.status) {
-                            ItemStatus.IN_PROGRESS -> Color(0xFF43AA8B)
-                            ItemStatus.MONITORING -> Color(0xFFFCCA3E)
-                            else -> Color.Gray
-                        },
+                        color = Color.Gray,
                         modifier = Modifier
                             .padding(top = 2.dp)
                             .background(
-                                when (item.status) {
-                                    ItemStatus.IN_PROGRESS -> Color(0xFF43AA8B).copy(alpha = 0.15f)
-                                    ItemStatus.MONITORING -> Color(0xFFFCCA3E).copy(alpha = 0.15f)
-                                    else -> Color.Gray.copy(alpha = 0.15f)
-                                },
-                                RoundedCornerShape(4.dp)
+                                Color.Gray.copy(alpha = 0.15f),
+                                RoundedCornerShape(4.dp),
                             )
                             .padding(horizontal = 4.dp, vertical = 1.dp),
                     )
                 }
+
+                if (item.snoozedUntil != null) {
+                    Text(
+                        text = "Snoozed until ${item.snoozedUntil.hour}:${item.snoozedUntil.minute.toString().padStart(2, '0')}",
+                        fontSize = 10.sp,
+                        color = Colors.example5TextGreyLight,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+
+                if (item.status != ItemStatus.COMPLETED && item.status != ItemStatus.ARCHIVED) {
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        TextButton(
+                            onClick = { onSnooze(10) },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        ) {
+                            Text("Snooze 10m", fontSize = 11.sp, color = Colors.example5TextGreyLight)
+                        }
+                        TextButton(
+                            onClick = { onSnooze(30) },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        ) {
+                            Text("Snooze 30m", fontSize = 11.sp, color = Colors.example5TextGreyLight)
+                        }
+                    }
+                }
             }
         }
 
-        // Delete button
         Box(
             modifier = Modifier
                 .background(color = itemBackgroundColor)
                 .fillMaxHeight()
-                .clickable(onClick = onDelete)
+                .clickable(onClick = onArchive)
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Delete",
+                imageVector = Icons.Default.Archive,
+                contentDescription = "Archive",
                 tint = Color.Gray,
             )
         }

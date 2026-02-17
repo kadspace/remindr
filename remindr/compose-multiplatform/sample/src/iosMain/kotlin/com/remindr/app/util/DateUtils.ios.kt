@@ -35,3 +35,20 @@ actual fun getCurrentDateTime(): LocalDateTime {
         components.second.toInt(),
     )
 }
+
+actual fun getDateTimeAfterMinutes(minutes: Int): LocalDateTime {
+    val date = NSDate.dateWithTimeIntervalSinceNow(minutes.toDouble() * 60.0)
+    val calendar = NSCalendar.currentCalendar
+    val components = calendar.components(
+        unitFlags = NSCalendarUnitYear or NSCalendarUnitMonth or NSCalendarUnitDay or NSCalendarUnitHour or NSCalendarUnitMinute or NSCalendarUnitSecond,
+        fromDate = date,
+    )
+    return LocalDateTime(
+        components.year.toInt(),
+        components.month.toInt(),
+        components.day.toInt(),
+        components.hour.toInt(),
+        components.minute.toInt(),
+        components.second.toInt(),
+    )
+}

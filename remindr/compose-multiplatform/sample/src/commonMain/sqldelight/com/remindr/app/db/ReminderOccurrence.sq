@@ -1,0 +1,226 @@
+CREATE TABLE ReminderOccurrence (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    series_id INTEGER NOT NULL,
+    due_at TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'PENDING',
+    completed_at TEXT,
+    snoozed_until TEXT,
+    reminder_offset_minutes INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(series_id) REFERENCES ReminderSeries(id) ON DELETE CASCADE
+);
+
+selectById:
+SELECT * FROM ReminderOccurrence
+WHERE id = ?;
+
+selectLast:
+SELECT * FROM ReminderOccurrence
+ORDER BY id DESC
+LIMIT 1;
+
+selectBySeriesId:
+SELECT * FROM ReminderOccurrence
+WHERE series_id = ?
+ORDER BY due_at DESC, id DESC;
+
+selectOpenBySeriesId:
+SELECT * FROM ReminderOccurrence
+WHERE series_id = :seriesId
+  AND state IN ('PENDING', 'SNOOZED')
+ORDER BY COALESCE(snoozed_until, due_at) ASC, id ASC;
+
+selectSchedulable:
+SELECT * FROM ReminderOccurrence
+WHERE state IN ('PENDING', 'SNOOZED')
+ORDER BY COALESCE(snoozed_until, due_at) ASC, id ASC;
+
+selectAllJoined:
+SELECT
+    o.id AS occurrenceId,
+    o.series_id AS seriesId,
+    o.due_at AS dueAt,
+    o.state AS state,
+    o.completed_at AS completedAt,
+    o.snoozed_until AS snoozedUntil,
+    o.reminder_offset_minutes AS reminderOffsetMinutes,
+    o.created_at AS occurrenceCreatedAt,
+    o.updated_at AS occurrenceUpdatedAt,
+    s.title AS seriesTitle,
+    s.notes AS seriesNotes,
+    s.start_at AS seriesStartAt,
+    s.timezone AS seriesTimezone,
+    s.recurrence_kind AS recurrenceKind,
+    s.recurrence_interval AS recurrenceInterval,
+    s.by_weekday AS byWeekday,
+    s.by_month_day AS byMonthDay,
+    s.end_mode AS endMode,
+    s.end_at AS endAt,
+    s.end_count AS endCount,
+    s.generated_count AS generatedCount,
+    s.reminder_offsets AS reminderOffsets,
+    s.is_active AS seriesIsActive,
+    s.archived_at AS seriesArchivedAt,
+    s.created_at AS seriesCreatedAt,
+    s.updated_at AS seriesUpdatedAt
+FROM ReminderOccurrence o
+INNER JOIN ReminderSeries s ON s.id = o.series_id
+ORDER BY COALESCE(o.snoozed_until, o.due_at) DESC, o.id DESC;
+
+selectSchedulableJoined:
+SELECT
+    o.id AS occurrenceId,
+    o.series_id AS seriesId,
+    o.due_at AS dueAt,
+    o.state AS state,
+    o.completed_at AS completedAt,
+    o.snoozed_until AS snoozedUntil,
+    o.reminder_offset_minutes AS reminderOffsetMinutes,
+    o.created_at AS occurrenceCreatedAt,
+    o.updated_at AS occurrenceUpdatedAt,
+    s.title AS seriesTitle,
+    s.notes AS seriesNotes,
+    s.start_at AS seriesStartAt,
+    s.timezone AS seriesTimezone,
+    s.recurrence_kind AS recurrenceKind,
+    s.recurrence_interval AS recurrenceInterval,
+    s.by_weekday AS byWeekday,
+    s.by_month_day AS byMonthDay,
+    s.end_mode AS endMode,
+    s.end_at AS endAt,
+    s.end_count AS endCount,
+    s.generated_count AS generatedCount,
+    s.reminder_offsets AS reminderOffsets,
+    s.is_active AS seriesIsActive,
+    s.archived_at AS seriesArchivedAt,
+    s.created_at AS seriesCreatedAt,
+    s.updated_at AS seriesUpdatedAt
+FROM ReminderOccurrence o
+INNER JOIN ReminderSeries s ON s.id = o.series_id
+WHERE s.is_active = 1
+  AND o.state IN ('PENDING', 'SNOOZED')
+ORDER BY COALESCE(o.snoozed_until, o.due_at) ASC, o.id ASC;
+
+selectJoinedByOccurrenceId:
+SELECT
+    o.id AS occurrenceId,
+    o.series_id AS seriesId,
+    o.due_at AS dueAt,
+    o.state AS state,
+    o.completed_at AS completedAt,
+    o.snoozed_until AS snoozedUntil,
+    o.reminder_offset_minutes AS reminderOffsetMinutes,
+    o.created_at AS occurrenceCreatedAt,
+    o.updated_at AS occurrenceUpdatedAt,
+    s.title AS seriesTitle,
+    s.notes AS seriesNotes,
+    s.start_at AS seriesStartAt,
+    s.timezone AS seriesTimezone,
+    s.recurrence_kind AS recurrenceKind,
+    s.recurrence_interval AS recurrenceInterval,
+    s.by_weekday AS byWeekday,
+    s.by_month_day AS byMonthDay,
+    s.end_mode AS endMode,
+    s.end_at AS endAt,
+    s.end_count AS endCount,
+    s.generated_count AS generatedCount,
+    s.reminder_offsets AS reminderOffsets,
+    s.is_active AS seriesIsActive,
+    s.archived_at AS seriesArchivedAt,
+    s.created_at AS seriesCreatedAt,
+    s.updated_at AS seriesUpdatedAt
+FROM ReminderOccurrence o
+INNER JOIN ReminderSeries s ON s.id = o.series_id
+WHERE o.id = ?;
+
+selectFirstOpenJoinedBySeriesId:
+SELECT
+    o.id AS occurrenceId,
+    o.series_id AS seriesId,
+    o.due_at AS dueAt,
+    o.state AS state,
+    o.completed_at AS completedAt,
+    o.snoozed_until AS snoozedUntil,
+    o.reminder_offset_minutes AS reminderOffsetMinutes,
+    o.created_at AS occurrenceCreatedAt,
+    o.updated_at AS occurrenceUpdatedAt,
+    s.title AS seriesTitle,
+    s.notes AS seriesNotes,
+    s.start_at AS seriesStartAt,
+    s.timezone AS seriesTimezone,
+    s.recurrence_kind AS recurrenceKind,
+    s.recurrence_interval AS recurrenceInterval,
+    s.by_weekday AS byWeekday,
+    s.by_month_day AS byMonthDay,
+    s.end_mode AS endMode,
+    s.end_at AS endAt,
+    s.end_count AS endCount,
+    s.generated_count AS generatedCount,
+    s.reminder_offsets AS reminderOffsets,
+    s.is_active AS seriesIsActive,
+    s.archived_at AS seriesArchivedAt,
+    s.created_at AS seriesCreatedAt,
+    s.updated_at AS seriesUpdatedAt
+FROM ReminderOccurrence o
+INNER JOIN ReminderSeries s ON s.id = o.series_id
+WHERE o.series_id = :seriesId
+  AND s.is_active = 1
+  AND o.state IN ('PENDING', 'SNOOZED')
+ORDER BY COALESCE(o.snoozed_until, o.due_at) ASC, o.id ASC
+LIMIT 1;
+
+insert:
+INSERT INTO ReminderOccurrence(
+    series_id,
+    due_at,
+    state,
+    completed_at,
+    snoozed_until,
+    reminder_offset_minutes,
+    created_at,
+    updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+updateCore:
+UPDATE ReminderOccurrence
+SET
+    due_at = ?,
+    state = ?,
+    snoozed_until = ?,
+    updated_at = ?
+WHERE id = ?;
+
+markCompleted:
+UPDATE ReminderOccurrence
+SET
+    state = 'COMPLETED',
+    completed_at = ?,
+    snoozed_until = NULL,
+    updated_at = ?
+WHERE id = ?;
+
+markSnoozed:
+UPDATE ReminderOccurrence
+SET
+    state = 'SNOOZED',
+    snoozed_until = ?,
+    updated_at = ?
+WHERE id = ?;
+
+markPending:
+UPDATE ReminderOccurrence
+SET
+    state = 'PENDING',
+    completed_at = NULL,
+    snoozed_until = NULL,
+    updated_at = ?
+WHERE id = ?;
+
+cancelOpenBySeriesId:
+UPDATE ReminderOccurrence
+SET
+    state = 'CANCELLED',
+    updated_at = ?
+WHERE series_id = :seriesId
+  AND state IN ('PENDING', 'SNOOZED');

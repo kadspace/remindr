@@ -50,13 +50,13 @@ fun YearMonth.atEndOfMonth(): LocalDate {
 @Composable
 fun CalendarScreen(
     items: List<Item>,
-    groups: List<com.remindr.app.data.model.Group>,
     selection: CalendarDay?,
     onSelectionChange: (CalendarDay?) -> Unit,
     recentlyAddedDate: LocalDate?,
     onItemClick: (Item) -> Unit,
-    onItemDelete: (Item) -> Unit,
+    onItemArchive: (Item) -> Unit,
     onItemStatusChange: (Long, ItemStatus) -> Unit,
+    onItemSnooze: (Long, Int) -> Unit,
     onSettingsClick: () -> Unit,
     viewMode: CalendarViewMode,
     onViewModeToggle: () -> Unit,
@@ -84,7 +84,12 @@ fun CalendarScreen(
         derivedStateOf {
             val date = selection?.date
             if (date == null) emptyList()
-            else items.filter { it.time?.date == date }
+            else items
+                .filter { it.time?.date == date }
+                .sortedWith(
+                    compareBy<Item> { statusOrder(it.status) }
+                        .thenBy { it.time ?: it.createdAt },
+                )
         }
     }
 
@@ -133,7 +138,9 @@ fun CalendarScreen(
                                 state = state,
                                 dayContent = { day ->
                                     val itemsForDay = if (day.position == DayPosition.MonthDate) {
-                                        items.filter { it.time?.date == day.date }
+                                        items
+                                            .filter { it.time?.date == day.date }
+                                            .sortedBy { statusOrder(it.status) }
                                     } else {
                                         emptyList()
                                     }
@@ -225,10 +232,9 @@ fun CalendarScreen(
                             ) {
                                 ItemRow(
                                     item = item,
-                                    onDelete = { onItemDelete(item) },
+                                    onArchive = { onItemArchive(item) },
                                     onStatusChange = { status -> onItemStatusChange(item.id, status) },
-                                    showGroupBadge = item.groupId != null,
-                                    groupName = item.groupId?.let { gid -> groups.find { it.id == gid }?.name },
+                                    onSnooze = { minutes -> onItemSnooze(item.id, minutes) },
                                 )
                             }
                         }
@@ -250,6 +256,18 @@ private fun rememberFirstCompletelyVisibleMonth(state: com.kizitonwose.remindr.c
             .collect { month -> if (month != null) visibleMonth.value = month }
     }
     return visibleMonth.value
+}
+
+private fun statusOrder(status: ItemStatus): Int {
+    return when (status) {
+        ItemStatus.PENDING,
+        ItemStatus.IN_PROGRESS,
+        ItemStatus.MONITORING,
+        -> 0
+
+        ItemStatus.COMPLETED -> 1
+        ItemStatus.ARCHIVED -> 2
+    }
 }
 
 private val com.kizitonwose.remindr.compose.CalendarLayoutInfo.completelyVisibleMonths: List<CalendarMonth>

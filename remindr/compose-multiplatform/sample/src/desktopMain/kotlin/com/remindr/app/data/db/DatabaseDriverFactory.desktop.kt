@@ -7,8 +7,8 @@ import java.io.File
 
 actual class DatabaseDriverFactory {
     actual fun createDriver(): SqlDriver {
-        val driver = JdbcSqliteDriver("jdbc:sqlite:remindr_v4.db")
-        if (!File("remindr_v4.db").exists()) {
+        val driver = JdbcSqliteDriver("jdbc:sqlite:remindr_v6.db")
+        if (!File("remindr_v6.db").exists()) {
             RemindrDatabase.Schema.create(driver)
         }
         return driver

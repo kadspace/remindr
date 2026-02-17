@@ -1,10 +1,9 @@
 package com.remindr.app.ui.screens.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -30,16 +29,17 @@ import com.remindr.app.ui.theme.Colors
 @Composable
 fun SettingsScreen(
     apiKey: String,
+    versionLabel: String,
     onApiKeyChange: (String) -> Unit,
     onTestNotification: () -> Unit,
     onRichTestNotification: () -> Unit,
+    onRequestExactAlarmPermission: () -> Unit,
     logs: String,
-    eventTypeLabels: List<String>,
-    onEventTypeLabelsChange: (List<String>) -> Unit,
     onBack: () -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
     var showPassword by remember { mutableStateOf(false) }
+    val hasApiKey = apiKey.trim().isNotEmpty()
 
     Scaffold(
         containerColor = Colors.example5PageBgColor,
@@ -124,6 +124,28 @@ fun SettingsScreen(
                         ),
                     )
 
+                    Text(
+                        text = if (hasApiKey) {
+                            val suffix = apiKey.takeLast(4)
+                            "Saved key detected (${apiKey.length} chars, ends with $suffix)."
+                        } else {
+                            "No key saved."
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Colors.example5TextGreyLight,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+
+                    if (hasApiKey) {
+                        TextButton(
+                            onClick = { onApiKeyChange("") },
+                            modifier = Modifier.padding(top = 2.dp),
+                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                        ) {
+                            Text("Clear saved key", color = Colors.example1Selection, fontSize = 12.sp)
+                        }
+                    }
+
                     Spacer(Modifier.height(8.dp))
 
                     Text(
@@ -135,67 +157,6 @@ fun SettingsScreen(
                             .clickable { uriHandler.openUri("https://console.groq.com/keys") }
                             .padding(vertical = 4.dp),
                     )
-                }
-            }
-
-            // Event Types
-            Text(
-                text = "EVENT TYPES",
-                style = MaterialTheme.typography.labelSmall,
-                color = Colors.example5TextGreyLight,
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-            )
-
-            Surface(
-                color = Colors.example5ItemViewBgColor,
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Colors.noteColors.forEachIndexed { index, color ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(color),
-                            )
-                            Spacer(Modifier.width(12.dp))
-
-                            OutlinedTextField(
-                                value = eventTypeLabels.getOrNull(index) ?: "",
-                                onValueChange = { newLabel ->
-                                    val updated = eventTypeLabels.toMutableList()
-                                    if (index < updated.size) {
-                                        updated[index] = newLabel
-                                    } else {
-                                        while (updated.size < index) updated.add("")
-                                        updated.add(newLabel)
-                                    }
-                                    onEventTypeLabelsChange(updated)
-                                },
-                                modifier = Modifier.weight(1f).height(48.dp),
-                                singleLine = true,
-                                placeholder = { Text("Type ${index + 1}", color = Colors.example5TextGreyLight) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = color,
-                                    unfocusedBorderColor = Color.Transparent,
-                                    cursorColor = color,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedContainerColor = Color.Black.copy(alpha = 0.2f),
-                                    unfocusedContainerColor = Color.Black.copy(alpha = 0.1f),
-                                ),
-                                textStyle = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                    }
                 }
             }
 
@@ -211,25 +172,23 @@ fun SettingsScreen(
                 color = Colors.example5ItemViewBgColor,
                 shape = RoundedCornerShape(16.dp),
             ) {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    Text(
+                        text = "Enable exact alarms for reliable reminder delivery.",
+                        color = Colors.example5TextGreyLight,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+
                     OutlinedButton(
-                        onClick = onTestNotification,
-                        modifier = Modifier.weight(1f),
+                        onClick = onRequestExactAlarmPermission,
+                        modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                         shape = RoundedCornerShape(10.dp),
                     ) {
-                        Text("Test", fontSize = 13.sp)
-                    }
-                    OutlinedButton(
-                        onClick = onRichTestNotification,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                        shape = RoundedCornerShape(10.dp),
-                    ) {
-                        Text("Rich Test", fontSize = 13.sp)
+                        Text("Enable Exact Alarms", fontSize = 13.sp)
                     }
                 }
             }
@@ -257,7 +216,7 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("v2.0.0", color = Color.White, fontSize = 14.sp)
+                            Text(versionLabel, color = Color.White, fontSize = 14.sp)
                             Text(
                                 "ALPHA",
                                 color = Color.Black,
