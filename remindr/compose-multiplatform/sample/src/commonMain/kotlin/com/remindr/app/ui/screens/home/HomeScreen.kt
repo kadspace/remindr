@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CardDefaults.cardElevation
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
 import com.remindr.app.data.ai.PriorityEngine
 import com.remindr.app.data.model.Item
 import com.remindr.app.data.model.ItemStatus
@@ -70,12 +72,16 @@ fun HomeScreen(
         val tabs = listOf(HomeFilter.ACTIVE, HomeFilter.COMPLETED)
         TabRow(selectedTabIndex = tabs.indexOf(filter)) {
             tabs.forEach { tab ->
+                val isSelected = filter == tab
                 Tab(
-                    selected = filter == tab,
+                    selected = isSelected,
                     onClick = { filter = tab },
                     text = {
                         Text(
                             if (tab == HomeFilter.ACTIVE) "Active" else "Completed",
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else Colors.example5TextGreyLight,
                         )
                     },
                 )
@@ -88,8 +94,8 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
                 ) {
                     item {
                         if (ranked.isEmpty()) {
@@ -133,8 +139,8 @@ private fun CompletedWithArchiveList(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
     ) {
         if (completedItems.isEmpty()) {
             item {
@@ -168,12 +174,14 @@ private fun CompletedWithArchiveList(
             ) {
                 Text(
                     text = "Archived (${archivedItems.size})",
-                    color = Colors.example5TextGreyLight,
+                    color = Color.White.copy(alpha = 0.88f),
                     fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
                 )
                 Text(
                     text = if (showArchived) "Hide" else "Show",
-                    color = Colors.example5TextGreyLight,
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontSize = 13.sp,
                 )
             }
         }
@@ -213,11 +221,15 @@ private fun ReminderHistoryCard(
     val titleColor = if (isDoneOrArchived) Colors.reminderDoneGray else Colors.reminderActiveRed
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = Colors.example5ItemViewBgColor),
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Colors.example5ItemViewBgColor.copy(alpha = 0.9f)),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+        elevation = cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(11.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 text = item.title,

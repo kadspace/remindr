@@ -225,17 +225,32 @@ fun CalendarScreen(
 
                 // Selected day items
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(items = itemsInSelectedDate.value) { item ->
-                            Box(
-                                modifier = Modifier.clickable { onItemClick(item) },
-                            ) {
-                                ItemRow(
-                                    item = item,
-                                    onArchive = { onItemArchive(item) },
-                                    onStatusChange = { status -> onItemStatusChange(item.id, status) },
-                                    onSnooze = { minutes -> onItemSnooze(item.id, minutes) },
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
+                    ) {
+                        if (itemsInSelectedDate.value.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "No reminders on this date.",
+                                    color = Colors.example5TextGreyLight,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    fontSize = 12.sp,
                                 )
+                            }
+                        } else {
+                            items(items = itemsInSelectedDate.value) { item ->
+                                Box(
+                                    modifier = Modifier.clickable { onItemClick(item) },
+                                ) {
+                                    ItemRow(
+                                        item = item,
+                                        onArchive = { onItemArchive(item) },
+                                        onStatusChange = { status -> onItemStatusChange(item.id, status) },
+                                        onSnooze = { minutes -> onItemSnooze(item.id, minutes) },
+                                    )
+                                }
                             }
                         }
                     }

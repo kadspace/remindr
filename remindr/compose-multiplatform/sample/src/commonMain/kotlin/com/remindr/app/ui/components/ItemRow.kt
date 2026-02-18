@@ -1,16 +1,21 @@
 package com.remindr.app.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,11 +26,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
 import com.remindr.app.data.model.Item
 import com.remindr.app.data.model.ItemStatus
 import com.remindr.app.ui.theme.Colors
+import com.remindr.app.util.formatTime12
 
-private val pageBackgroundColor: Color = Colors.example5PageBgColor
 private val itemBackgroundColor: Color = Colors.example5ItemViewBgColor
 
 @Composable
@@ -39,19 +45,19 @@ fun LazyItemScope.ItemRow(
     val isDoneOrArchived = item.status == ItemStatus.COMPLETED || item.status == ItemStatus.ARCHIVED
     val titleColor = if (isDoneOrArchived) Colors.reminderDoneGray else Colors.reminderActiveRed
 
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Max),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 4.dp, vertical = 3.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDoneOrArchived) itemBackgroundColor.copy(alpha = 0.82f) else itemBackgroundColor.copy(alpha = 0.9f),
+        ),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
     ) {
-        Box(
-            modifier = Modifier
-                .background(color = itemBackgroundColor)
-                .fillMaxHeight()
-                .padding(horizontal = 4.dp),
-            contentAlignment = Alignment.Center,
+        Row(
+            modifier = Modifier.padding(start = 6.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.Top,
         ) {
             Checkbox(
                 checked = isCompleted,
@@ -64,23 +70,17 @@ fun LazyItemScope.ItemRow(
                     checkmarkColor = Color.White,
                 ),
             )
-        }
 
-        Box(
-            modifier = Modifier
-                .background(
-                    color = if (isDoneOrArchived) itemBackgroundColor.copy(alpha = 0.88f) else itemBackgroundColor,
-                )
-                .weight(1f)
-                .fillMaxHeight()
-                .padding(8.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
                 Text(
                     text = item.title,
                     color = titleColor,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     textDecoration = if (isCompleted) TextDecoration.LineThrough else null,
                 )
@@ -88,76 +88,51 @@ fun LazyItemScope.ItemRow(
                     text = item.dueSummary,
                     fontSize = 11.sp,
                     color = Colors.example5TextGreyLight,
-                    modifier = Modifier.padding(top = 2.dp),
                 )
                 item.recurrenceSummary?.let { recurrence ->
                     Text(
                         text = recurrence,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         color = Colors.example5TextGreyLight,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-                if (item.status != ItemStatus.PENDING && item.status != ItemStatus.COMPLETED) {
-                    Text(
-                        text = item.status.name.replace("_", " "),
-                        fontSize = 9.sp,
-                        color = Color.Gray,
-                        modifier = Modifier
-                            .padding(top = 2.dp)
-                            .background(
-                                Color.Gray.copy(alpha = 0.15f),
-                                RoundedCornerShape(4.dp),
-                            )
-                            .padding(horizontal = 4.dp, vertical = 1.dp),
                     )
                 }
 
                 if (item.snoozedUntil != null) {
                     Text(
-                        text = "Snoozed until ${item.snoozedUntil.hour}:${item.snoozedUntil.minute.toString().padStart(2, '0')}",
-                        fontSize = 10.sp,
+                        text = "Snoozed until ${formatTime12(item.snoozedUntil.time)}",
+                        fontSize = 11.sp,
                         color = Colors.example5TextGreyLight,
-                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
 
-                if (item.status != ItemStatus.COMPLETED && item.status != ItemStatus.ARCHIVED) {
-                    Row(
-                        modifier = Modifier.padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
+                if (!isDoneOrArchived) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         TextButton(
                             onClick = { onSnooze(10) },
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                            contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp),
                         ) {
                             Text("Snooze 10m", fontSize = 11.sp, color = Colors.example5TextGreyLight)
                         }
                         TextButton(
                             onClick = { onSnooze(30) },
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                            contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp),
                         ) {
                             Text("Snooze 30m", fontSize = 11.sp, color = Colors.example5TextGreyLight)
                         }
                     }
                 }
             }
-        }
 
-        Box(
-            modifier = Modifier
-                .background(color = itemBackgroundColor)
-                .fillMaxHeight()
-                .clickable(onClick = onArchive)
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.Archive,
-                contentDescription = "Archive",
-                tint = Color.Gray,
-            )
+            IconButton(
+                onClick = onArchive,
+                modifier = Modifier.padding(top = 1.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Archive,
+                    contentDescription = "Archive",
+                    tint = Color.Gray,
+                )
+            }
         }
     }
-    HorizontalDivider(thickness = 2.dp, color = pageBackgroundColor)
 }

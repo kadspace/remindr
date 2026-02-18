@@ -1,6 +1,7 @@
 package com.remindr.app.data.model
 
 import androidx.compose.ui.graphics.Color
+import com.remindr.app.util.formatTime12
 import kotlinx.datetime.LocalDateTime
 
 data class Item(
@@ -36,9 +37,7 @@ data class Item(
     val dueSummary: String
         get() {
             val due = time ?: return "No due date"
-            val hour = due.hour.toString().padStart(2, '0')
-            val minute = due.minute.toString().padStart(2, '0')
-            return "Due ${due.date} at $hour:$minute"
+            return "Due ${due.date} at ${formatTime12(due.time)}"
         }
 
     val recurrenceSummary: String?

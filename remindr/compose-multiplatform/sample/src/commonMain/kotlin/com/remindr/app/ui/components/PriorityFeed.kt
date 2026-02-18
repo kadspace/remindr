@@ -3,6 +3,7 @@ package com.remindr.app.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -41,12 +42,13 @@ fun PriorityFeed(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onItemClick(item.id) },
-                colors = CardDefaults.cardColors(containerColor = itemBackgroundColor),
-                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = itemBackgroundColor.copy(alpha = 0.9f)),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
+                shape = RoundedCornerShape(20.dp),
             ) {
                 Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 6.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.Top,
                 ) {
                     Checkbox(
                         checked = item.isCompleted,
@@ -64,17 +66,23 @@ fun PriorityFeed(
                         modifier = Modifier
                             .weight(1f)
                             .padding(start = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         Text(
                             text = item.title,
                             color = titleColor,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                         )
                         Text(
                             text = priority.context,
                             color = Colors.example5TextGreyLight,
                             fontSize = 12.sp,
+                        )
+                        Text(
+                            text = item.dueSummary,
+                            color = Colors.example5TextGreyLight,
+                            fontSize = 11.sp,
                         )
                         item.recurrenceSummary?.let { recurrence ->
                             Text(
@@ -83,23 +91,24 @@ fun PriorityFeed(
                                 fontSize = 11.sp,
                             )
                         }
-                    }
-
-                    Row(
-                        modifier = Modifier.padding(top = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        TextButton(
-                            onClick = { onSnooze(item.id, 10) },
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                        ) {
-                            Text("+10m", fontSize = 11.sp, color = Colors.example5TextGreyLight)
-                        }
-                        TextButton(
-                            onClick = { onSnooze(item.id, 30) },
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                        ) {
-                            Text("+30m", fontSize = 11.sp, color = Colors.example5TextGreyLight)
+                        if (!isDoneOrArchived) {
+                            Row(
+                                modifier = Modifier.padding(top = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                TextButton(
+                                    onClick = { onSnooze(item.id, 10) },
+                                    contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp),
+                                ) {
+                                    Text("+10m", fontSize = 11.sp, color = Colors.example5TextGreyLight)
+                                }
+                                TextButton(
+                                    onClick = { onSnooze(item.id, 30) },
+                                    contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp),
+                                ) {
+                                    Text("+30m", fontSize = 11.sp, color = Colors.example5TextGreyLight)
+                                }
+                            }
                         }
                     }
                 }

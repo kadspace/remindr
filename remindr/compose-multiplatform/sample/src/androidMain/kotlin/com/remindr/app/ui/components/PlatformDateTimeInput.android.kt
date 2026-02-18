@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.remindr.app.util.formatTime24TextTo12
 import kotlinx.datetime.LocalDate
 import java.util.Calendar
 import java.util.Locale
@@ -90,14 +91,14 @@ actual fun PlatformDateTimeInput(
                     },
                     initialHour,
                     initialMinute,
-                    true,
+                    false,
                 ).show()
             },
             modifier = Modifier.weight(1f),
         ) {
             Icon(Icons.Default.AccessTime, contentDescription = null)
             Text(
-                text = if (dueTime.isBlank()) "Pick time" else dueTime,
+                text = if (dueTime.isBlank()) "Pick time" else formatTime24TextTo12(dueTime),
                 modifier = Modifier.padding(start = 6.dp),
             )
         }

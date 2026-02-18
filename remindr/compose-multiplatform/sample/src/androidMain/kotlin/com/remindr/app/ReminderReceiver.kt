@@ -125,11 +125,26 @@ class ReminderReceiver : BroadcastReceiver() {
             Severity.LOW -> android.graphics.Color.BLUE
         }
 
+        val dueLine = item.dueSummary
+        val detailsLine = item.description?.trim().orEmpty()
+        val bodyLine = if (detailsLine.isNotBlank()) detailsLine else dueLine
+        val expandedText = buildString {
+            append(dueLine)
+            if (detailsLine.isNotBlank()) {
+                append('\n')
+                append(detailsLine)
+            }
+            item.recurrenceSummary?.let {
+                append('\n')
+                append(it)
+            }
+        }
+
         val notificationBuilder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(if (iconId != 0) iconId else android.R.drawable.ic_popup_reminder)
             .setContentTitle(item.title)
-            .setContentText(item.description ?: item.time?.toString() ?: "")
-            .setStyle(NotificationCompat.BigTextStyle().bigText(item.description ?: ""))
+            .setContentText(bodyLine)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(expandedText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(contentPendingIntent)
             .setAutoCancel(true)

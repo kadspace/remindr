@@ -1,14 +1,25 @@
 package com.remindr.app
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.kizitonwose.remindr.core.CalendarDay
 import com.kizitonwose.remindr.core.DayPosition
@@ -32,6 +43,7 @@ import com.remindr.app.util.getDateTimeAfterMinutes
 import com.remindr.app.util.getFormattedTime
 import com.remindr.app.util.getToday
 import com.remindr.app.util.getCurrentDateTime
+import com.remindr.app.util.formatTime12
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
@@ -90,6 +102,8 @@ fun RemindrApp(
 
     // Input bar state
     var isSaving by remember { mutableStateOf(false) }
+    var isComposerOpen by remember { mutableStateOf(false) }
+    var composerFocusTick by remember { mutableStateOf(0) }
 
     // Debug logs
     var debugLogs by remember { mutableStateOf("Logs will appear here...\n") }
@@ -99,10 +113,11 @@ fun RemindrApp(
 
     // BackHandler
     com.remindr.app.ui.components.BackHandler(
-        enabled = currentScreen != AppScreen.Home,
+        enabled = currentScreen != AppScreen.Home || isComposerOpen,
     ) {
         when {
             currentScreen == AppScreen.Settings -> currentScreen = AppScreen.Home
+            isComposerOpen -> isComposerOpen = false
             selection != null -> selection = null
         }
     }
@@ -326,53 +341,37 @@ fun RemindrApp(
                 containerColor = pageBackgroundColor,
                 bottomBar = {
                     Column(Modifier.imePadding()) {
-                        // Input bar sits right above the nav bar
-                        InputBar(
-                            placeholder = when (currentTab) {
-                                BottomTab.Home -> "New Reminder..."
-                                BottomTab.Calendar -> if (selection != null) "Add to ${selection?.date}..." else "New Reminder..."
-                            },
-                            isSaving = isSaving,
-                            onSend = { text -> handleAiInput(text) },
-                        )
-                        NavigationBar(
-                            containerColor = Colors.example5ToolbarColor,
-                            contentColor = Color.White,
-                            modifier = Modifier.navigationBarsPadding(),
+                        AnimatedVisibility(
+                            visible = isComposerOpen,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
                         ) {
-                            NavigationBarItem(
-                                selected = currentTab == BottomTab.Home,
-                                onClick = {
-                                    currentTab = BottomTab.Home
-                                    currentScreen = AppScreen.Home
+                            InputBar(
+                                placeholder = when (currentTab) {
+                                    BottomTab.Home -> "New Reminder..."
+                                    BottomTab.Calendar -> if (selection != null) "Add to ${selection?.date}..." else "New Reminder..."
                                 },
-                                icon = { Icon(Icons.Default.Home, "Home") },
-                                label = { Text("Home") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Colors.accent,
-                                    selectedTextColor = Colors.accent,
-                                    indicatorColor = Colors.accent.copy(alpha = 0.15f),
-                                    unselectedIconColor = Color.Gray,
-                                    unselectedTextColor = Color.Gray,
-                                ),
-                            )
-                            NavigationBarItem(
-                                selected = currentTab == BottomTab.Calendar,
-                                onClick = {
-                                    currentTab = BottomTab.Calendar
-                                    currentScreen = AppScreen.Calendar
+                                isSaving = isSaving,
+                                autoFocusTick = composerFocusTick,
+                                onSend = { text ->
+                                    handleAiInput(text)
+                                    isComposerOpen = false
                                 },
-                                icon = { Icon(Icons.Default.DateRange, "Calendar") },
-                                label = { Text("Calendar") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Colors.accent,
-                                    selectedTextColor = Colors.accent,
-                                    indicatorColor = Colors.accent.copy(alpha = 0.15f),
-                                    unselectedIconColor = Color.Gray,
-                                    unselectedTextColor = Color.Gray,
-                                ),
                             )
                         }
+                        BottomActionRow(
+                            selectedTab = currentTab,
+                            onSelectTab = { tab ->
+                                isComposerOpen = false
+                                currentTab = tab
+                                currentScreen = if (tab == BottomTab.Home) AppScreen.Home else AppScreen.Calendar
+                            },
+                            onAddClick = {
+                                isComposerOpen = true
+                                composerFocusTick += 1
+                            },
+                            modifier = Modifier.navigationBarsPadding(),
+                        )
                     }
                 },
             ) { scaffoldPadding ->
@@ -496,6 +495,109 @@ fun RemindrApp(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BottomActionRow(
+    selectedTab: BottomTab,
+    onSelectTab: (BottomTab) -> Unit,
+    onAddClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(44.dp)
+                .clickable(onClick = onAddClick),
+            shape = CircleShape,
+            color = Colors.reminderActiveRed.copy(alpha = 0.9f),
+            tonalElevation = 0.dp,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "New reminder",
+                    tint = Color.White,
+                )
+            }
+        }
+
+        BottomRadioNav(
+            selectedTab = selectedTab,
+            onSelect = onSelectTab,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun BottomRadioNav(
+    selectedTab: BottomTab,
+    onSelect: (BottomTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .height(44.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Colors.example5ToolbarColor.copy(alpha = 0.96f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+        tonalElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BottomRadioNavButton(
+                selected = selectedTab == BottomTab.Home,
+                icon = Icons.Default.Home,
+                contentDescription = "Home",
+                onClick = { onSelect(BottomTab.Home) },
+            )
+            BottomRadioNavButton(
+                selected = selectedTab == BottomTab.Calendar,
+                icon = Icons.Default.DateRange,
+                contentDescription = "Calendar",
+                onClick = { onSelect(BottomTab.Calendar) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowScope.BottomRadioNavButton(
+    selected: Boolean,
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val iconTint = if (selected) Color.White else Colors.example5TextGreyLight
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Transparent)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = iconTint,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -751,7 +853,7 @@ private fun occurrencePreviewLine(
     recurrenceInterval: Int,
     recurrenceEndDate: LocalDateTime?,
 ): String {
-    val timeText = "${dueAt.hour.toString().padStart(2, '0')}:${dueAt.minute.toString().padStart(2, '0')}"
+    val timeText = formatTime12(dueAt.time)
     if (recurrenceType == null) {
         return "Will occur on ${dueAt.date} at $timeText."
     }

@@ -4,6 +4,7 @@ import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toUpperCase
 import com.kizitonwose.remindr.core.Week
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.Month
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.yearMonth
@@ -42,4 +43,27 @@ fun getWeekPageTitle(week: Week): String {
             "${firstDate.yearMonth.displayText()} - ${lastDate.yearMonth.displayText()}"
         }
     }
+}
+
+fun formatTime12(time: LocalTime): String {
+    return formatTime12(hour = time.hour, minute = time.minute)
+}
+
+fun formatTime12(hour: Int, minute: Int): String {
+    val normalizedHour = hour.coerceIn(0, 23)
+    val normalizedMinute = minute.coerceIn(0, 59)
+    val meridiem = if (normalizedHour < 12) "AM" else "PM"
+    val displayHour = when (val value = normalizedHour % 12) {
+        0 -> 12
+        else -> value
+    }
+    return "$displayHour:${normalizedMinute.toString().padStart(2, '0')} $meridiem"
+}
+
+fun formatTime24TextTo12(text: String): String {
+    val match = Regex("^(\\d{1,2}):(\\d{2})$").find(text.trim()) ?: return text
+    val hour = match.groupValues[1].toIntOrNull() ?: return text
+    val minute = match.groupValues[2].toIntOrNull() ?: return text
+    if (hour !in 0..23 || minute !in 0..59) return text
+    return formatTime12(hour = hour, minute = minute)
 }

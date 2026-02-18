@@ -97,7 +97,7 @@ object Colors {
     val example5ItemViewBgColor = activePalette.surface
     val example5ToolbarColor = activePalette.toolbar
     val example5TextGrey = Color(0xFFDCDCDC)
-    val example5TextGreyLight = Color(0xFF616161)
+    val example5TextGreyLight = Color(0xFF9A9A9A)
     val example6MonthBgColor = Color(0xFFB2EBF2)
     val example6MonthBgColor2 = Color(0xFFF2C4B2)
     val example6MonthBgColor3 = Color(0xFFB2B8F2)

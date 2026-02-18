@@ -6,6 +6,9 @@ commandlinetools.zip
 *.log
 *.tmp
 
+# Local adb screenshot captures
+screenshots/adb/
+
 # User specific
 y.txt
 
