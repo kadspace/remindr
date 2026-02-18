@@ -1,6 +1,7 @@
 package com.remindr.app
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kizitonwose.remindr.core.CalendarDay
 import com.kizitonwose.remindr.core.DayPosition
 import com.remindr.app.data.ai.AiService
@@ -34,6 +36,7 @@ import com.remindr.app.db.RemindrDatabase
 import com.remindr.app.domain.ReminderScheduler
 import com.remindr.app.ui.components.EditSheet
 import com.remindr.app.ui.components.InputBar
+import com.remindr.app.ui.components.RemindrWordmark
 import com.remindr.app.ui.navigation.AppScreen
 import com.remindr.app.ui.navigation.BottomTab
 import com.remindr.app.ui.navigation.CalendarViewMode
@@ -344,7 +347,15 @@ fun RemindrApp(
         closeEditor()
     }
 
+    // Splash state
+    var showSplash by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(1200)
+        showSplash = false
+    }
+
     // Main Layout
+    Box(modifier = Modifier.fillMaxSize()) {
     when (currentScreen) {
         AppScreen.Settings -> {
             SettingsScreen(
@@ -555,6 +566,22 @@ fun RemindrApp(
             }
         }
     }
+
+    // Splash overlay
+    AnimatedVisibility(
+        visible = showSplash,
+        exit = fadeOut(animationSpec = tween(400)),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0E0E0E)),
+            contentAlignment = Alignment.Center,
+        ) {
+            RemindrWordmark(iconSize = 48.dp, fontSize = 28.sp)
+        }
+    }
+    } // end Box
 }
 
 @Composable

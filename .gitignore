@@ -11,6 +11,16 @@ screenshots/adb/
 
 # User specific
 y.txt
+ANALYSIS.md
+.claude/
+
+# Old logo files
+remindr logo.png
+remindr_icon_centered.png
+remindr_logo_new.png
+
+# Dev screenshots
+screenshots/sample radio button*.png
 
 # IntelliJ / Android Studio
 .idea/

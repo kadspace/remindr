@@ -143,8 +143,8 @@ android {
         applicationId = "com.remindr.app"
         minSdk = Android.minSdk
         targetSdk = Android.targetSdk
-        versionCode = 25
-        versionName = "2.0.8"
+        versionCode = 26
+        versionName = "2.1.0"
         multiDexEnabled = true
     }
     packaging {

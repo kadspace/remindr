@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="Remindr logo" width="200"/>
+</p>
+
 # Remindr
 
 A calendar app where you just type what you need to remember and AI figures out the rest.

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.remindr.app.ui.components.RemindrWordmark
 import com.remindr.app.ui.theme.Colors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -205,7 +206,13 @@ fun SettingsScreen(
                 color = Colors.example5ItemViewBgColor,
                 shape = RoundedCornerShape(16.dp),
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Spacer(Modifier.height(8.dp))
+                    RemindrWordmark(iconSize = 36.dp, fontSize = 20.sp)
+                    Spacer(Modifier.height(20.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
