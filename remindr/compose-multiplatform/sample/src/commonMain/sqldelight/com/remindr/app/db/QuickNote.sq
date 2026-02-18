@@ -1,0 +1,53 @@
+CREATE TABLE QuickNote (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    is_archived INTEGER NOT NULL DEFAULT 0,
+    promoted_occurrence_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+selectAllActive:
+SELECT * FROM QuickNote
+WHERE is_archived = 0
+ORDER BY updated_at DESC, id DESC;
+
+selectById:
+SELECT * FROM QuickNote
+WHERE id = ?;
+
+selectLast:
+SELECT * FROM QuickNote
+ORDER BY id DESC
+LIMIT 1;
+
+insert:
+INSERT INTO QuickNote(
+    content,
+    is_archived,
+    promoted_occurrence_id,
+    created_at,
+    updated_at
+) VALUES (?, ?, ?, ?, ?);
+
+updateContent:
+UPDATE QuickNote
+SET
+    content = ?,
+    updated_at = ?
+WHERE id = ?;
+
+setArchived:
+UPDATE QuickNote
+SET
+    is_archived = ?,
+    updated_at = ?
+WHERE id = ?;
+
+setPromotedOccurrence:
+UPDATE QuickNote
+SET
+    promoted_occurrence_id = ?,
+    updated_at = ?
+WHERE id = ?;
+
