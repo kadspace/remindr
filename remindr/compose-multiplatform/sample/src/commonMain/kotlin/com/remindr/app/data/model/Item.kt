@@ -26,6 +26,7 @@ data class Item(
     val recurrenceEndDate: LocalDateTime? = null,
     val recurrenceRule: String? = null,
     val nagEnabled: Boolean = false,
+    val isNoAi: Boolean = false,
     val lastCompletedAt: LocalDateTime? = null,
     val snoozedUntil: LocalDateTime? = null,
     val reminderOffsets: List<Long> = emptyList(),

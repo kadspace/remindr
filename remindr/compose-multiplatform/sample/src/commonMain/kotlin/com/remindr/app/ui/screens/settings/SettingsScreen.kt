@@ -32,6 +32,7 @@ fun SettingsScreen(
     apiKey: String,
     versionLabel: String,
     onApiKeyChange: (String) -> Unit,
+    onResetAndSeedDemoData: () -> Unit,
     onBack: () -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
@@ -144,6 +145,40 @@ fun SettingsScreen(
                             .clickable { uriHandler.openUri("https://console.groq.com/keys") }
                             .padding(vertical = 4.dp),
                     )
+                }
+            }
+
+            // Data
+            Text(
+                text = "DATA",
+                style = MaterialTheme.typography.labelSmall,
+                color = Colors.example5TextGreyLight,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+            )
+
+            Surface(
+                color = Colors.example5ItemViewBgColor,
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Reset app data and load demo reminders/notes.",
+                        color = Colors.example5TextGreyLight,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(
+                        onClick = onResetAndSeedDemoData,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF8B2B2B),
+                            contentColor = Color.White,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Reset + Load Demo Data")
+                    }
                 }
             }
 

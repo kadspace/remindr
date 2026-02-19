@@ -56,8 +56,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 
 private val pageBackgroundColor: Color = Colors.example5PageBgColor
-private const val mockSeedKey = "__mock_seed_version__"
-private const val mockSeedVersion = "2026-02-19"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +92,9 @@ fun RemindrApp(
     var editDueTimeText by remember { mutableStateOf("") }
     var editEndMode by remember { mutableStateOf("NEVER") }
     var editEndDateText by remember { mutableStateOf("") }
+    var editDueDateError by remember { mutableStateOf<String?>(null) }
+    var editDueTimeError by remember { mutableStateOf<String?>(null) }
+    var editEndDateError by remember { mutableStateOf<String?>(null) }
     var editingNoteId by remember { mutableStateOf<Long?>(null) }
     var noteEditorText by remember { mutableStateOf("") }
     var noteEditorInitialText by remember { mutableStateOf("") }
@@ -108,14 +109,6 @@ fun RemindrApp(
     // Settings
     var apiKey by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
-        val seeded = repository.getSetting(mockSeedKey)
-        if (seeded != mockSeedVersion) {
-            repository.clearAllData()
-            database.groupTableQueries.deleteAll()
-            quickNoteRepository.clearAll()
-            seedMockData(repository, quickNoteRepository)
-            repository.saveSetting(mockSeedKey, mockSeedVersion)
-        }
         apiKey = repository.getApiKey().orEmpty()
     }
 
@@ -130,19 +123,21 @@ fun RemindrApp(
     // AI Service
     val aiService = remember { AiService() }
 
-    suspend fun createReminderFromInput(inputText: String): Long? {
-        debugLogs += "${getFormattedTime()}: Requesting AI for: '$inputText'\n"
+    suspend fun createReminderFromInput(inputText: String, forceNoAi: Boolean): Long? {
+        debugLogs += "${getFormattedTime()}: Saving reminder (no_ai=$forceNoAi) for: '$inputText'\n"
         val today = getToday()
         val now = getCurrentDateTime()
         var parsedItem: ParsedItem? = null
 
-        if (apiKey.isNotBlank()) {
+        if (!forceNoAi && apiKey.isNotBlank()) {
             try {
                 parsedItem = aiService.parseItem(inputText, apiKey, today)
                 debugLogs += "${getFormattedTime()}: AI Response: $parsedItem\n"
             } catch (e: Exception) {
                 debugLogs += "${getFormattedTime()}: AI Error: ${e.message}\n"
             }
+        } else if (forceNoAi) {
+            debugLogs += "${getFormattedTime()}: No AI mode enabled; skipped AI call.\n"
         }
 
         val title = resolveTitleForInput(parsedItem, inputText)
@@ -177,6 +172,7 @@ fun RemindrApp(
             recurrenceEndMode = if (recurrenceType == null) "NEVER" else if (parsedItem.safeRecurrenceEndDateOrNull() != null) "UNTIL_DATE" else "NEVER",
             recurrenceEndDate = parsedItem.safeRecurrenceEndDateOrNull(),
             nagEnabled = parsedItem?.nagEnabled ?: false,
+            isNoAi = forceNoAi,
             reminderOffsets = parsedItem?.reminderOffsets?.takeIf { it.isNotEmpty() } ?: listOf(0L),
             createdAt = now,
         )
@@ -193,11 +189,11 @@ fun RemindrApp(
         return newId
     }
 
-    fun handleAiInput(inputText: String) {
+    fun handleAiInput(inputText: String, forceNoAi: Boolean) {
         coroutineScope.launch {
             isSaving = true
             try {
-                createReminderFromInput(inputText)
+                createReminderFromInput(inputText, forceNoAi)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -348,10 +344,24 @@ fun RemindrApp(
             "NEVER"
         }
         editEndDateText = item.recurrenceEndDate?.date?.toUsDateString().orEmpty()
+        editDueDateError = null
+        editDueTimeError = null
+        editEndDateError = null
     }
 
     fun closeEditor() {
         editingItemId = null
+        editDueDateError = null
+        editDueTimeError = null
+        editEndDateError = null
+    }
+
+    fun resetAndSeedDemoData() {
+        repository.clearAllData()
+        database.groupTableQueries.deleteAll()
+        quickNoteRepository.clearAll()
+        seedMockData(repository, quickNoteRepository)
+        apiKey = repository.getApiKey().orEmpty()
     }
 
     fun saveEdits() {
@@ -361,18 +371,37 @@ fun RemindrApp(
             return
         }
 
+        editDueDateError = null
+        editDueTimeError = null
+        editEndDateError = null
+
         val normalizedTitle = editTitle.trim().ifBlank { currentItem.title }
-        val parsedDate = parseLocalDateOrNull(editDueDateText) ?: currentItem.time?.date ?: getToday()
-        val parsedTime = parseLocalTimeOrNull(editDueTimeText) ?: currentItem.time?.time ?: LocalTime(12, 0)
-        val parsedDueAt = parsedDate.atTime(parsedTime)
+        val parsedDate = parseLocalDateOrNull(editDueDateText)
+        if (parsedDate == null) {
+            editDueDateError = "Use MM/DD/YYYY."
+        }
+
+        val parsedTime = parseLocalTimeOrNull(editDueTimeText)
+        if (parsedTime == null) {
+            editDueTimeError = "Use HH:MM (24-hour)."
+        }
+
+        val parsedEndDate = if (editEndMode == "UNTIL_DATE") parseLocalDateOrNull(editEndDateText) else null
+        if (editEndMode == "UNTIL_DATE" && parsedEndDate == null) {
+            editEndDateError = "Use MM/DD/YYYY."
+        }
+
+        if (editDueDateError != null || editDueTimeError != null || editEndDateError != null) {
+            return
+        }
+
+        val safeParsedDate = parsedDate ?: return
+        val safeParsedTime = parsedTime ?: return
+        val safeParsedEndDate = if (editEndMode == "UNTIL_DATE") parsedEndDate ?: return else null
+        val parsedDueAt = safeParsedDate.atTime(safeParsedTime)
         val parsedRecurrenceType = editRecurrenceType?.takeIf { it in supportedRecurrenceTypes }
         val parsedRecurrenceInterval = editIntervalText.trim().toIntOrNull()?.coerceAtLeast(1) ?: currentItem.recurrenceInterval
-        val parsedEndDate = if (editEndMode == "UNTIL_DATE") {
-            parseLocalDateOrNull(editEndDateText) ?: parsedDate
-        } else {
-            null
-        }
-        val parsedEndDateTime = parsedEndDate?.atTime(parsedTime)
+        val parsedEndDateTime = safeParsedEndDate?.atTime(safeParsedTime)
 
         val updatedItem = currentItem.copy(
             title = normalizedTitle,
@@ -421,6 +450,7 @@ fun RemindrApp(
                     apiKey = newKey
                     repository.saveApiKey(newKey)
                 },
+                onResetAndSeedDemoData = { resetAndSeedDemoData() },
                 onBack = { openTab(currentTab) },
             )
         }
@@ -443,8 +473,9 @@ fun RemindrApp(
                                 },
                                 isSaving = isSaving,
                                 autoFocusTick = composerFocusTick,
-                                onSend = { text ->
-                                    handleAiInput(text)
+                                showNoAiToggle = true,
+                                onSend = { text, noAi ->
+                                    handleAiInput(text, noAi)
                                     isComposerOpen = false
                                 },
                             )
@@ -548,9 +579,17 @@ fun RemindrApp(
                         scheduleModeSummary = editablePreview.scheduleModeSummary,
                         willOccurPreview = willOccurPreview,
                         dueDate = editDueDateText,
-                        onDueDateChange = { editDueDateText = it },
+                        onDueDateChange = {
+                            editDueDateText = it
+                            editDueDateError = null
+                        },
+                        dueDateError = editDueDateError,
                         dueTime = editDueTimeText,
-                        onDueTimeChange = { editDueTimeText = it },
+                        onDueTimeChange = {
+                            editDueTimeText = it
+                            editDueTimeError = null
+                        },
+                        dueTimeError = editDueTimeError,
                         scheduleMode = scheduleMode,
                         onScheduleModeChange = { mode ->
                             when (mode) {
@@ -559,6 +598,7 @@ fun RemindrApp(
                                     editIntervalText = "1"
                                     editEndMode = "NEVER"
                                     editEndDateText = ""
+                                    editEndDateError = null
                                 }
 
                                 "RECURRING_FOREVER" -> {
@@ -566,6 +606,7 @@ fun RemindrApp(
                                     if (editIntervalText.isBlank()) editIntervalText = "1"
                                     editEndMode = "NEVER"
                                     editEndDateText = ""
+                                    editEndDateError = null
                                 }
 
                                 "RECURRING_UNTIL_DATE" -> {
@@ -585,7 +626,11 @@ fun RemindrApp(
                         recurrenceInterval = editIntervalText,
                         onRecurrenceIntervalChange = { editIntervalText = it.filter { c -> c.isDigit() }.ifBlank { "" } },
                         endDate = editEndDateText,
-                        onEndDateChange = { editEndDateText = it },
+                        onEndDateChange = {
+                            editEndDateText = it
+                            editEndDateError = null
+                        },
+                        endDateError = editEndDateError,
                         onSave = { saveEdits() },
                     )
                 }

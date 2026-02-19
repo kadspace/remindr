@@ -14,6 +14,7 @@ data class QuickNote(
     val id: Long = -1L,
     val content: String,
     val state: QuickNoteState = QuickNoteState.ACTIVE,
+    val isNoAi: Boolean = true,
     val promotedOccurrenceId: Long? = null,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,

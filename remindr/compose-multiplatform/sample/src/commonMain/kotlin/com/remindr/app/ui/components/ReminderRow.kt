@@ -106,6 +106,9 @@ fun ReminderRow(
                         .padding(start = 52.dp, end = 10.dp, bottom = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    if (item.isNoAi) {
+                        NoAiBadge()
+                    }
                     Text(
                         text = item.dueSummary,
                         fontSize = 12.sp,

@@ -34,8 +34,10 @@ fun EditSheet(
     willOccurPreview: String,
     dueDate: String,
     onDueDateChange: (String) -> Unit,
+    dueDateError: String?,
     dueTime: String,
     onDueTimeChange: (String) -> Unit,
+    dueTimeError: String?,
     scheduleMode: String,
     onScheduleModeChange: (String) -> Unit,
     recurrenceType: String?,
@@ -44,6 +46,7 @@ fun EditSheet(
     onRecurrenceIntervalChange: (String) -> Unit,
     endDate: String,
     onEndDateChange: (String) -> Unit,
+    endDateError: String?,
     onSave: () -> Unit,
 ) {
     Column(
@@ -81,6 +84,20 @@ fun EditSheet(
             onDueTimeChange = onDueTimeChange,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (dueDateError != null) {
+            Text(
+                text = dueDateError,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        if (dueTimeError != null) {
+            Text(
+                text = dueTimeError,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
 
         Text("Schedule", style = MaterialTheme.typography.labelSmall)
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -123,6 +140,13 @@ fun EditSheet(
                     label = "End date",
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (endDateError != null) {
+                    Text(
+                        text = endDateError,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
 

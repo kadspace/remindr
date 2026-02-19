@@ -54,20 +54,40 @@ class ItemRepository(database: RemindrDatabase) {
 
     fun getAllItems(): Flow<List<Item>> {
         return selectAllJoinedQuery().asFlow().mapToList(Dispatchers.IO).map { rows ->
-            rows.map(::joinedToItem)
+            val noAiByDefault = !hasConfiguredApiKey()
+            val noAiCache = mutableMapOf<Long, Boolean>()
+            rows.map { row ->
+                val isNoAi = noAiCache.getOrPut(row.seriesId) {
+                    isNoAiSeries(row.seriesId)
+                }
+                joinedToItem(row, isNoAi = noAiByDefault || isNoAi)
+            }
         }
     }
 
     fun getItemById(id: Long): Item? {
-        return selectJoinedByOccurrenceIdQuery(id).executeAsOneOrNull()?.let(::joinedToItem)
+        val noAiByDefault = !hasConfiguredApiKey()
+        return selectJoinedByOccurrenceIdQuery(id).executeAsOneOrNull()?.let { row ->
+            joinedToItem(row, isNoAi = noAiByDefault || isNoAiSeries(row.seriesId))
+        }
     }
 
     fun getSchedulableItemsSnapshot(): List<Item> {
-        return selectSchedulableJoinedQuery().executeAsList().map(::joinedToItem)
+        val noAiByDefault = !hasConfiguredApiKey()
+        val noAiCache = mutableMapOf<Long, Boolean>()
+        return selectSchedulableJoinedQuery().executeAsList().map { row ->
+            val isNoAi = noAiCache.getOrPut(row.seriesId) {
+                isNoAiSeries(row.seriesId)
+            }
+            joinedToItem(row, isNoAi = noAiByDefault || isNoAi)
+        }
     }
 
     fun getNextOpenItemForSeries(seriesId: Long): Item? {
-        return selectFirstOpenJoinedBySeriesIdQuery(seriesId).executeAsOneOrNull()?.let(::joinedToItem)
+        val noAiByDefault = !hasConfiguredApiKey()
+        return selectFirstOpenJoinedBySeriesIdQuery(seriesId).executeAsOneOrNull()?.let { row ->
+            joinedToItem(row, isNoAi = noAiByDefault || isNoAiSeries(row.seriesId))
+        }
     }
 
     fun insert(item: Item) {
@@ -116,6 +136,7 @@ class ItemRepository(database: RemindrDatabase) {
         )
 
         val seriesId = seriesQueries.selectLast().executeAsOneOrNull()?.id ?: return
+        setNoAiForSeries(seriesId, item.isNoAi)
         val initialState = when (item.status) {
             ItemStatus.COMPLETED -> occurrenceCompleted
             ItemStatus.ARCHIVED -> occurrenceCancelled
@@ -309,14 +330,6 @@ class ItemRepository(database: RemindrDatabase) {
         settingsQueries.upsert("gemini_api_key", key)
     }
 
-    fun getSetting(key: String): String? {
-        return settingsQueries.get(key).executeAsOneOrNull()
-    }
-
-    fun saveSetting(key: String, value: String) {
-        settingsQueries.upsert(key, value)
-    }
-
     fun clearAllData() {
         occurrenceQueries.deleteAll()
         seriesQueries.deleteAll()
@@ -453,7 +466,7 @@ class ItemRepository(database: RemindrDatabase) {
         return LocalDate(year, month, 1)
     }
 
-    private fun joinedToItem(row: JoinedOccurrence): Item {
+    private fun joinedToItem(row: JoinedOccurrence, isNoAi: Boolean): Item {
         val dueAt = LocalDateTime.parse(row.snoozedUntil ?: row.dueAt)
         val status = when {
             row.state == occurrenceDeleted -> ItemStatus.DELETED
@@ -483,6 +496,7 @@ class ItemRepository(database: RemindrDatabase) {
             recurrenceEndDate = row.endAt?.let { LocalDateTime.parse(it) },
             recurrenceRule = null,
             nagEnabled = false,
+            isNoAi = isNoAi,
             lastCompletedAt = row.completedAt?.let { LocalDateTime.parse(it) },
             snoozedUntil = row.snoozedUntil?.let { LocalDateTime.parse(it) },
             reminderOffsets = parseOffsets(row.reminderOffsets),
@@ -540,6 +554,22 @@ class ItemRepository(database: RemindrDatabase) {
 
     private fun reminderReconcileKey(itemId: Long, scheduledTime: LocalDateTime): String {
         return "reminder_reconciled_${itemId}_${scheduledTime}"
+    }
+
+    private fun setNoAiForSeries(seriesId: Long, enabled: Boolean) {
+        settingsQueries.upsert(noAiSeriesKey(seriesId), if (enabled) "1" else "0")
+    }
+
+    private fun isNoAiSeries(seriesId: Long): Boolean {
+        return settingsQueries.get(noAiSeriesKey(seriesId)).executeAsOneOrNull() == "1"
+    }
+
+    private fun hasConfiguredApiKey(): Boolean {
+        return !settingsQueries.get("gemini_api_key").executeAsOneOrNull().isNullOrBlank()
+    }
+
+    private fun noAiSeriesKey(seriesId: Long): String {
+        return "no_ai_series_$seriesId"
     }
 
     private companion object {

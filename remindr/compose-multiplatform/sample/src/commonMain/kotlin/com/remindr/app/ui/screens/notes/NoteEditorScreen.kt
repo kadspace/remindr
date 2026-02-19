@@ -30,6 +30,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.remindr.app.ui.components.BackHandler
+import com.remindr.app.ui.components.NoAiBadge
 import com.remindr.app.ui.theme.Colors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,6 +82,10 @@ fun NoteEditorScreen(
                     }
                 },
                 actions = {
+                    NoAiBadge(
+                        label = "No AI note",
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
                     TextButton(onClick = onDone) {
                         Text(
                             text = "Done",

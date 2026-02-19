@@ -1,13 +1,17 @@
 package com.remindr.app.ui.screens.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +25,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -279,94 +286,167 @@ private fun SwipeableReminderRow(
     onStatusChange: (ItemStatus) -> Unit,
     onOpen: () -> Unit,
 ) {
+    val actionThreshold = 0.18f
     val dismissState = rememberSwipeToDismissBoxState(
-        positionalThreshold = { total -> total * 0.45f },
+        positionalThreshold = { total -> total * actionThreshold },
     )
-    var actionHandled by remember(item.id, item.status) { mutableStateOf(false) }
+    var pendingAction by remember(item.id, item.status) { mutableStateOf<ReminderSwipeAction?>(null) }
 
     LaunchedEffect(dismissState.currentValue, onSecondaryAction) {
         when (dismissState.currentValue) {
             SwipeToDismissBoxValue.StartToEnd -> {
-                if (!actionHandled) {
-                    actionHandled = true
-                    delay(110)
-                    onPrimaryAction()
-                }
+                if (pendingAction == null) pendingAction = ReminderSwipeAction.Primary
+                dismissState.reset()
             }
 
             SwipeToDismissBoxValue.EndToStart -> {
-                if (!actionHandled && onSecondaryAction != null) {
-                    actionHandled = true
-                    delay(110)
-                    onSecondaryAction()
+                if (onSecondaryAction != null && pendingAction == null) {
+                    pendingAction = ReminderSwipeAction.Secondary
                 }
+                dismissState.reset()
             }
 
-            SwipeToDismissBoxValue.Settled -> actionHandled = false
+            SwipeToDismissBoxValue.Settled -> Unit
         }
     }
 
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = onSecondaryAction != null,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val isArmed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
-            val label = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> primaryActionLabel
-                SwipeToDismissBoxValue.EndToStart -> secondaryActionLabel.orEmpty()
-                SwipeToDismissBoxValue.Settled -> ""
-            }
-            val backgroundColor = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> if (isArmed) Color(0xFF2A5A3C) else Color(0xFF1F3529)
-                SwipeToDismissBoxValue.EndToStart -> if (isArmed) Color(0xFF6A2A2A) else Color(0xFF4A1F1F)
-                SwipeToDismissBoxValue.Settled -> Color.Transparent
-            }
-            val alignment = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
-                SwipeToDismissBoxValue.Settled -> Alignment.Center
-            }
-            val labelAlpha by animateFloatAsState(
-                targetValue = if (direction == SwipeToDismissBoxValue.Settled) 0f else if (isArmed) 1f else 0.82f,
-                animationSpec = tween(durationMillis = 140),
-                label = "reminderSwipeLabelAlpha",
-            )
-            val labelScale by animateFloatAsState(
-                targetValue = if (isArmed) 1.07f else 0.94f,
-                animationSpec = tween(durationMillis = 140),
-                label = "reminderSwipeLabelScale",
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(backgroundColor, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 16.dp),
-                contentAlignment = alignment,
-            ) {
-                if (label.isNotBlank()) {
-                    Text(
-                        text = label,
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.graphicsLayer {
-                            alpha = labelAlpha
-                            scaleX = labelScale
-                            scaleY = labelScale
-                        },
-                    )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SwipeToDismissBox(
+            state = dismissState,
+            enableDismissFromStartToEnd = pendingAction == null,
+            enableDismissFromEndToStart = pendingAction == null && onSecondaryAction != null,
+            backgroundContent = {
+                val direction = dismissState.dismissDirection
+                val isArmed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+                val label = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd ->
+                        if (isArmed) "Release to stage $primaryActionLabel" else primaryActionLabel
+                    SwipeToDismissBoxValue.EndToStart ->
+                        if (isArmed) "Release to stage ${secondaryActionLabel.orEmpty()}" else secondaryActionLabel.orEmpty()
+                    SwipeToDismissBoxValue.Settled -> ""
                 }
+                val backgroundColor = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> if (isArmed) Color(0xFF2A5A3C) else Color(0xFF1F3529)
+                    SwipeToDismissBoxValue.EndToStart -> if (isArmed) Color(0xFF6A2A2A) else Color(0xFF4A1F1F)
+                    SwipeToDismissBoxValue.Settled -> Color.Transparent
+                }
+                val alignment = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+                    SwipeToDismissBoxValue.Settled -> Alignment.Center
+                }
+                val labelAlpha by animateFloatAsState(
+                    targetValue = if (direction == SwipeToDismissBoxValue.Settled) 0f else if (isArmed) 1f else 0.8f,
+                    animationSpec = tween(durationMillis = 120),
+                    label = "reminderSwipeLabelAlpha",
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = alignment,
+                ) {
+                    if (label.isNotBlank()) {
+                        Text(
+                            text = label,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.graphicsLayer { alpha = labelAlpha },
+                        )
+                    }
+                }
+            },
+        ) {
+            val rowScale by animateFloatAsState(
+                targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.Settled) 1f else 0.992f,
+                animationSpec = tween(durationMillis = 110),
+                label = "reminderSwipeRowScale",
+            )
+            Box(
+                modifier = Modifier.graphicsLayer {
+                    scaleX = rowScale
+                    scaleY = rowScale
+                },
+            ) {
+                ReminderRow(
+                    item = item,
+                    onStatusChange = onStatusChange,
+                    onEdit = onOpen,
+                )
             }
-        },
+        }
+
+        AnimatedVisibility(visible = pendingAction != null) {
+            val isSecondary = pendingAction == ReminderSwipeAction.Secondary
+            val actionLabel = if (isSecondary) secondaryActionLabel.orEmpty() else primaryActionLabel
+            ReminderSwipeConfirmBar(
+                actionLabel = actionLabel,
+                destructive = isSecondary,
+                onConfirm = {
+                    when (pendingAction) {
+                        ReminderSwipeAction.Primary -> onPrimaryAction()
+                        ReminderSwipeAction.Secondary -> onSecondaryAction?.invoke()
+                        null -> Unit
+                    }
+                    pendingAction = null
+                },
+                onCancel = { pendingAction = null },
+            )
+        }
+    }
+}
+
+private enum class ReminderSwipeAction {
+    Primary,
+    Secondary,
+}
+
+@Composable
+private fun ReminderSwipeConfirmBar(
+    actionLabel: String,
+    destructive: Boolean,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Colors.example5ToolbarColor.copy(alpha = 0.9f)),
     ) {
-        ReminderRow(
-            item = item,
-            onStatusChange = onStatusChange,
-            onEdit = onOpen,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Confirm $actionLabel?",
+                color = Color.White.copy(alpha = 0.93f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            OutlinedButton(
+                onClick = onCancel,
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+            ) {
+                Text("Cancel", color = Color.White, fontSize = 11.sp)
+            }
+            Button(
+                onClick = onConfirm,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (destructive) Color(0xFF7A2A2A) else Color(0xFF2A5A3C),
+                ),
+            ) {
+                Text(actionLabel, color = Color.White, fontSize = 11.sp)
+            }
+        }
     }
 }
 

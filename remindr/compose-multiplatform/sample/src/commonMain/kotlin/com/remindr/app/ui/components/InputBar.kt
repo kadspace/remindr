@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.remindr.app.ui.components.NoAiBadge
 import com.remindr.app.ui.theme.Colors
 
 private val pageBackgroundColor: Color = Colors.example5PageBgColor
@@ -26,9 +28,11 @@ fun InputBar(
     placeholder: String = "New Reminder...",
     isSaving: Boolean = false,
     autoFocusTick: Int = 0,
-    onSend: (String) -> Unit,
+    showNoAiToggle: Boolean = false,
+    onSend: (String, Boolean) -> Unit,
 ) {
     var inputText by remember { mutableStateOf("") }
+    var noAiEnabled by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -82,7 +86,8 @@ fun InputBar(
                             onClick = {
                                 val text = inputText
                                 inputText = ""
-                                onSend(text)
+                                onSend(text, noAiEnabled)
+                                noAiEnabled = false
                             },
                         ) {
                             Icon(
@@ -94,6 +99,30 @@ fun InputBar(
                     }
                 },
             )
+        }
+
+        if (showNoAiToggle) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = noAiEnabled,
+                    onClick = { noAiEnabled = !noAiEnabled },
+                    label = {
+                        Text(
+                            text = if (noAiEnabled) "No AI On" else "No AI",
+                            fontSize = 11.sp,
+                        )
+                    },
+                )
+                if (noAiEnabled) {
+                    NoAiBadge(label = "No AI mode")
+                }
+            }
         }
     }
 }

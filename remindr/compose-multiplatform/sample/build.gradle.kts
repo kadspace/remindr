@@ -78,6 +78,8 @@ kotlin {
         val commonMain by getting
         val nativeMain by getting
         val desktopMain by getting
+        val commonTest by getting
+        val desktopTest by getting
         val androidMain by getting
 
         // val webMain by getting
@@ -124,6 +126,12 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.sqldelight.sqlite.driver)
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+        desktopTest.dependencies {
+            implementation(libs.sqldelight.sqlite.driver)
+        }
     }
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilerOptions {
@@ -144,8 +152,8 @@ android {
         applicationId = "com.remindr.app"
         minSdk = Android.minSdk
         targetSdk = Android.targetSdk
-        versionCode = 30
-        versionName = "2.1.4"
+        versionCode = 31
+        versionName = "2.2.0"
         multiDexEnabled = true
     }
     packaging {
