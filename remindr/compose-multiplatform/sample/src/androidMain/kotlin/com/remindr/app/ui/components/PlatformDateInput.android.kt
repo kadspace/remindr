@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
+import com.remindr.app.util.parseUsOrIsoLocalDateOrNull
 import kotlinx.datetime.LocalDate
 import java.util.Calendar
 import java.util.Locale
@@ -25,7 +26,7 @@ actual fun PlatformDateInput(
     val context = LocalContext.current
     OutlinedButton(
         onClick = {
-            val initialDate = runCatching { LocalDate.parse(value) }.getOrNull()
+            val initialDate = parseUsOrIsoLocalDateOrNull(value)
                 ?: run {
                     val now = Calendar.getInstance()
                     LocalDate(
@@ -40,10 +41,10 @@ actual fun PlatformDateInput(
                     onValueChange(
                         String.format(
                             Locale.US,
-                            "%04d-%02d-%02d",
-                            year,
+                            "%02d/%02d/%04d",
                             monthOfYear + 1,
                             dayOfMonth,
+                            year,
                         )
                     )
                 },

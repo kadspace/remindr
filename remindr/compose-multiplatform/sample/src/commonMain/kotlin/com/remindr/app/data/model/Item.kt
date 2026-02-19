@@ -2,6 +2,9 @@ package com.remindr.app.data.model
 
 import androidx.compose.ui.graphics.Color
 import com.remindr.app.util.formatTime12
+import com.remindr.app.util.getToday
+import com.remindr.app.util.toUsDateString
+import kotlin.math.abs
 import kotlinx.datetime.LocalDateTime
 
 data class Item(
@@ -37,7 +40,44 @@ data class Item(
     val dueSummary: String
         get() {
             val due = time ?: return "No due date"
-            return "Due ${due.date} at ${formatTime12(due.time)}"
+            val today = getToday()
+            val dueDate = due.date
+            val daysDelta = (dueDate.toEpochDays() - today.toEpochDays()).toInt()
+            val absDays = abs(daysDelta)
+
+            val relative = when {
+                daysDelta == 0 -> "Due today"
+                daysDelta == 1 -> "Due tomorrow"
+                daysDelta in 2..6 -> "Due on ${dueDate.dayOfWeek.name.toTitleCaseWord()}"
+                daysDelta > 6 && absDays < 30 -> {
+                    val weeks = absDays / 7
+                    if (weeks >= 1) {
+                        val unit = if (weeks == 1) "week" else "weeks"
+                        "Due in $weeks $unit"
+                    } else {
+                        "Due in $absDays days"
+                    }
+                }
+                daysDelta >= 30 -> {
+                    val months = (absDays / 30).coerceAtLeast(1)
+                    val unit = if (months == 1) "month" else "months"
+                    "Due in $months $unit"
+                }
+                daysDelta == -1 -> "Due yesterday"
+                daysDelta in -6..-2 -> "Due ${absDays} days ago"
+                daysDelta <= -30 -> {
+                    val months = (absDays / 30).coerceAtLeast(1)
+                    val unit = if (months == 1) "month" else "months"
+                    "Due $months $unit ago"
+                }
+                else -> {
+                    val weeks = (absDays / 7).coerceAtLeast(1)
+                    val unit = if (weeks == 1) "week" else "weeks"
+                    "Due $weeks $unit ago"
+                }
+            }
+
+            return "$relative (${dueDate.toUsDateString()}) at ${formatTime12(due.time)}"
         }
 
     val recurrenceSummary: String?
@@ -66,14 +106,14 @@ data class Item(
             }
 
             val endDate = recurrenceEndDate?.date ?: return base
-            return "$base until $endDate"
+            return "$base until ${endDate.toUsDateString()}"
         }
 
     val scheduleModeSummary: String
         get() {
             if (recurrenceType == null) return "One-time"
             return if (recurrenceEndMode == "UNTIL_DATE" && recurrenceEndDate != null) {
-                "Recurring until ${recurrenceEndDate.date}"
+                "Recurring until ${recurrenceEndDate.date.toUsDateString()}"
             } else {
                 "Recurring forever"
             }

@@ -1,0 +1,6 @@
+<svg width="720" height="180" viewBox="0 0 720 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="180" fill="black"/>
+  <rect x="40" y="62" width="178" height="14" rx="7" fill="#DB504A"/>
+  <rect x="40" y="98" width="128" height="14" rx="7" fill="#5A5A5A"/>
+  <text x="250" y="122" fill="#ECECEC" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="86" font-weight="700" letter-spacing="-1.5">remindr</text>
+</svg>

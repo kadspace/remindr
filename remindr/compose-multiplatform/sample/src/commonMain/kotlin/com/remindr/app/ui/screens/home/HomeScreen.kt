@@ -1,8 +1,11 @@
 package com.remindr.app.ui.screens.home
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,180 +13,176 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardDefaults.cardElevation
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.BorderStroke
-import com.remindr.app.data.ai.PriorityEngine
 import com.remindr.app.data.model.Item
 import com.remindr.app.data.model.ItemStatus
-import com.remindr.app.ui.components.PriorityFeed
+import com.remindr.app.ui.components.ReminderRow
 import com.remindr.app.ui.theme.Colors
-import com.remindr.app.util.getToday
+import kotlinx.datetime.LocalTime
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-private enum class HomeFilter { ACTIVE, COMPLETED }
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     items: List<Item>,
     onStatusChange: (Long, ItemStatus) -> Unit,
-    onSnooze: (Long, Int) -> Unit,
     onItemClick: (Long) -> Unit,
 ) {
-    val today = remember { getToday() }
-    var filter by remember { mutableStateOf(HomeFilter.ACTIVE) }
+    var showCompleted by rememberSaveable { mutableStateOf(false) }
+    var showArchived by rememberSaveable { mutableStateOf(false) }
+    var showDeleted by rememberSaveable { mutableStateOf(false) }
+    var hiddenRows by remember { mutableStateOf(setOf<Pair<Long, ItemStatus>>()) }
+    val coroutineScope = rememberCoroutineScope()
 
-    val activeItems = remember(items) {
-        items
-            .filter { it.status != ItemStatus.COMPLETED && it.status != ItemStatus.ARCHIVED }
-            .sortedBy { it.time ?: it.createdAt }
+    val currentRows = remember(items) { items.map { it.id to it.status }.toSet() }
+    LaunchedEffect(currentRows) {
+        hiddenRows = hiddenRows.filterTo(mutableSetOf()) { it in currentRows }
     }
-    val completedItems = remember(items) {
+
+    fun hideOptimistically(item: Item) {
+        val key = item.id to item.status
+        hiddenRows = hiddenRows + key
+        coroutineScope.launch {
+            delay(1500)
+            hiddenRows = hiddenRows - key
+        }
+    }
+
+    val activeItems = remember(items, hiddenRows) {
+        items
+            .filter { it.status !in setOf(ItemStatus.COMPLETED, ItemStatus.ARCHIVED, ItemStatus.DELETED) }
+            .filter { (it.id to it.status) !in hiddenRows }
+            .let(::sortActiveRemindersForQueue)
+    }
+    val completedItems = remember(items, hiddenRows) {
         items
             .filter { it.status == ItemStatus.COMPLETED }
+            .filter { (it.id to it.status) !in hiddenRows }
             .sortedByDescending { it.lastCompletedAt ?: it.createdAt }
     }
-    val archivedItems = remember(items) {
+    val archivedItems = remember(items, hiddenRows) {
         items
             .filter { it.status == ItemStatus.ARCHIVED }
+            .filter { (it.id to it.status) !in hiddenRows }
             .sortedByDescending { it.createdAt }
     }
-
-    val ranked = remember(activeItems) {
-        PriorityEngine.rankAll(activeItems, today)
+    val deletedItems = remember(items, hiddenRows) {
+        items
+            .filter { it.status == ItemStatus.DELETED }
+            .filter { (it.id to it.status) !in hiddenRows }
+            .sortedByDescending { it.createdAt }
     }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        val tabs = listOf(HomeFilter.ACTIVE, HomeFilter.COMPLETED)
-        TabRow(selectedTabIndex = tabs.indexOf(filter)) {
-            tabs.forEach { tab ->
-                val isSelected = filter == tab
-                Tab(
-                    selected = isSelected,
-                    onClick = { filter = tab },
-                    text = {
-                        Text(
-                            if (tab == HomeFilter.ACTIVE) "Active" else "Completed",
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else Colors.example5TextGreyLight,
-                        )
-                    },
-                )
-            }
-        }
-
-        when (filter) {
-            HomeFilter.ACTIVE -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
-                ) {
-                    item {
-                        if (ranked.isEmpty()) {
-                            Text(
-                                text = "No active reminders.",
-                                color = Colors.example5TextGreyLight,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        } else {
-                            PriorityFeed(
-                                priorities = ranked,
-                                onStatusChange = onStatusChange,
-                                onSnooze = onSnooze,
-                                onItemClick = onItemClick,
-                            )
-                        }
-                    }
-                }
-            }
-
-            HomeFilter.COMPLETED -> {
-                CompletedWithArchiveList(
-                    completedItems = completedItems,
-                    archivedItems = archivedItems,
-                    onStatusChange = onStatusChange,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompletedWithArchiveList(
-    completedItems: List<Item>,
-    archivedItems: List<Item>,
-    onStatusChange: (Long, ItemStatus) -> Unit,
-) {
-    var showArchived by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(top = 10.dp, bottom = 120.dp),
     ) {
-        if (completedItems.isEmpty()) {
+        if (activeItems.isEmpty()) {
             item {
                 Text(
-                    text = "No completed reminders yet.",
+                    text = "No active reminders.",
                     color = Colors.example5TextGreyLight,
-                    modifier = Modifier.padding(top = 8.dp),
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 6.dp, start = 4.dp),
                 )
             }
         } else {
-            items(items = completedItems, key = { it.id }) { item ->
-                ReminderHistoryCard(
+            items(activeItems, key = { it.id }) { item ->
+                SwipeableReminderRow(
                     item = item,
-                    primaryActionLabel = if (item.recurrenceType == null) "Mark Active" else "Keep Completed",
-                    primaryActionEnabled = item.recurrenceType == null,
-                    onPrimaryAction = { onStatusChange(item.id, ItemStatus.PENDING) },
-                    secondaryActionLabel = "Archive",
-                    onSecondaryAction = { onStatusChange(item.id, ItemStatus.ARCHIVED) },
+                    primaryActionLabel = "Archive",
+                    secondaryActionLabel = "Delete",
+                    onPrimaryAction = {
+                        hideOptimistically(item)
+                        onStatusChange(item.id, ItemStatus.ARCHIVED)
+                    },
+                    onSecondaryAction = {
+                        hideOptimistically(item)
+                        onStatusChange(item.id, ItemStatus.DELETED)
+                    },
+                    onStatusChange = { status -> onStatusChange(item.id, status) },
+                    onOpen = { onItemClick(item.id) },
                 )
             }
         }
 
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showArchived = !showArchived }
-                    .padding(top = 8.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Archived (${archivedItems.size})",
-                    color = Color.White.copy(alpha = 0.88f),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                )
-                Text(
-                    text = if (showArchived) "Hide" else "Show",
-                    color = Color.White.copy(alpha = 0.88f),
-                    fontSize = 13.sp,
-                )
+            SectionToggle(
+                label = "Completed",
+                count = completedItems.size,
+                expanded = showCompleted,
+                onToggle = { showCompleted = !showCompleted },
+            )
+        }
+
+        if (showCompleted) {
+            if (completedItems.isEmpty()) {
+                item {
+                    Text(
+                        text = "No completed reminders.",
+                        color = Colors.example5TextGreyLight,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 6.dp, top = 2.dp),
+                    )
+                }
+            } else {
+                items(completedItems, key = { it.id }) { item ->
+                    SwipeableReminderRow(
+                        item = item,
+                        primaryActionLabel = "Restore",
+                        secondaryActionLabel = "Delete",
+                        onPrimaryAction = {
+                            hideOptimistically(item)
+                            onStatusChange(item.id, ItemStatus.PENDING)
+                        },
+                        onSecondaryAction = {
+                            hideOptimistically(item)
+                            onStatusChange(item.id, ItemStatus.DELETED)
+                        },
+                        onStatusChange = { status -> onStatusChange(item.id, status) },
+                        onOpen = { onItemClick(item.id) },
+                    )
+                }
             }
+        }
+
+        item {
+            SectionToggle(
+                label = "Archived",
+                count = archivedItems.size,
+                expanded = showArchived,
+                onToggle = { showArchived = !showArchived },
+            )
         }
 
         if (showArchived) {
@@ -192,15 +191,63 @@ private fun CompletedWithArchiveList(
                     Text(
                         text = "No archived reminders.",
                         color = Colors.example5TextGreyLight,
-                        modifier = Modifier.padding(top = 4.dp),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 6.dp, top = 2.dp),
                     )
                 }
             } else {
-                items(items = archivedItems, key = { it.id }) { item ->
-                    ReminderHistoryCard(
+                items(archivedItems, key = { it.id }) { item ->
+                    SwipeableReminderRow(
                         item = item,
                         primaryActionLabel = "Restore",
-                        onPrimaryAction = { onStatusChange(item.id, ItemStatus.PENDING) },
+                        secondaryActionLabel = "Delete",
+                        onPrimaryAction = {
+                            hideOptimistically(item)
+                            onStatusChange(item.id, ItemStatus.PENDING)
+                        },
+                        onSecondaryAction = {
+                            hideOptimistically(item)
+                            onStatusChange(item.id, ItemStatus.DELETED)
+                        },
+                        onStatusChange = { status -> onStatusChange(item.id, status) },
+                        onOpen = { onItemClick(item.id) },
+                    )
+                }
+            }
+        }
+
+        item {
+            SectionToggle(
+                label = "Deleted",
+                count = deletedItems.size,
+                expanded = showDeleted,
+                onToggle = { showDeleted = !showDeleted },
+            )
+        }
+
+        if (showDeleted) {
+            if (deletedItems.isEmpty()) {
+                item {
+                    Text(
+                        text = "No deleted reminders.",
+                        color = Colors.example5TextGreyLight,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 6.dp, top = 2.dp),
+                    )
+                }
+            } else {
+                items(deletedItems, key = { it.id }) { item ->
+                    SwipeableReminderRow(
+                        item = item,
+                        primaryActionLabel = "Restore",
+                        secondaryActionLabel = null,
+                        onPrimaryAction = {
+                            hideOptimistically(item)
+                            onStatusChange(item.id, ItemStatus.PENDING)
+                        },
+                        onSecondaryAction = null,
+                        onStatusChange = { status -> onStatusChange(item.id, status) },
+                        onOpen = { onItemClick(item.id) },
                     )
                 }
             }
@@ -208,63 +255,162 @@ private fun CompletedWithArchiveList(
     }
 }
 
+private fun sortActiveRemindersForQueue(items: List<Item>): List<Item> {
+    val fallbackTime = LocalTime(23, 59)
+    return items.sortedWith(
+        compareBy<Item>(
+            { it.time == null },
+            { it.time?.date?.toEpochDays() ?: Int.MAX_VALUE },
+            { it.time?.time ?: fallbackTime },
+            { it.createdAt },
+            { it.id },
+        ),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReminderHistoryCard(
+private fun SwipeableReminderRow(
     item: Item,
     primaryActionLabel: String,
+    secondaryActionLabel: String?,
     onPrimaryAction: () -> Unit,
-    primaryActionEnabled: Boolean = true,
-    secondaryActionLabel: String? = null,
-    onSecondaryAction: (() -> Unit)? = null,
+    onSecondaryAction: (() -> Unit)?,
+    onStatusChange: (ItemStatus) -> Unit,
+    onOpen: () -> Unit,
 ) {
-    val isDoneOrArchived = item.status == ItemStatus.COMPLETED || item.status == ItemStatus.ARCHIVED
-    val titleColor = if (isDoneOrArchived) Colors.reminderDoneGray else Colors.reminderActiveRed
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { total -> total * 0.45f },
+    )
+    var actionHandled by remember(item.id, item.status) { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Colors.example5ItemViewBgColor.copy(alpha = 0.9f)),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)),
-        elevation = cardElevation(defaultElevation = 0.dp),
+    LaunchedEffect(dismissState.currentValue, onSecondaryAction) {
+        when (dismissState.currentValue) {
+            SwipeToDismissBoxValue.StartToEnd -> {
+                if (!actionHandled) {
+                    actionHandled = true
+                    delay(110)
+                    onPrimaryAction()
+                }
+            }
+
+            SwipeToDismissBoxValue.EndToStart -> {
+                if (!actionHandled && onSecondaryAction != null) {
+                    actionHandled = true
+                    delay(110)
+                    onSecondaryAction()
+                }
+            }
+
+            SwipeToDismissBoxValue.Settled -> actionHandled = false
+        }
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = onSecondaryAction != null,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val isArmed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+            val label = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> primaryActionLabel
+                SwipeToDismissBoxValue.EndToStart -> secondaryActionLabel.orEmpty()
+                SwipeToDismissBoxValue.Settled -> ""
+            }
+            val backgroundColor = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> if (isArmed) Color(0xFF2A5A3C) else Color(0xFF1F3529)
+                SwipeToDismissBoxValue.EndToStart -> if (isArmed) Color(0xFF6A2A2A) else Color(0xFF4A1F1F)
+                SwipeToDismissBoxValue.Settled -> Color.Transparent
+            }
+            val alignment = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+                SwipeToDismissBoxValue.Settled -> Alignment.Center
+            }
+            val labelAlpha by animateFloatAsState(
+                targetValue = if (direction == SwipeToDismissBoxValue.Settled) 0f else if (isArmed) 1f else 0.82f,
+                animationSpec = tween(durationMillis = 140),
+                label = "reminderSwipeLabelAlpha",
+            )
+            val labelScale by animateFloatAsState(
+                targetValue = if (isArmed) 1.07f else 0.94f,
+                animationSpec = tween(durationMillis = 140),
+                label = "reminderSwipeLabelScale",
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(backgroundColor, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 16.dp),
+                contentAlignment = alignment,
+            ) {
+                if (label.isNotBlank()) {
+                    Text(
+                        text = label,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.graphicsLayer {
+                            alpha = labelAlpha
+                            scaleX = labelScale
+                            scaleY = labelScale
+                        },
+                    )
+                }
+            }
+        },
     ) {
-        Column(
-            modifier = Modifier.padding(11.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ReminderRow(
+            item = item,
+            onStatusChange = onStatusChange,
+            onEdit = onOpen,
+        )
+    }
+}
+
+@Composable
+private fun SectionToggle(
+    label: String,
+    count: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (expanded) Color.White.copy(alpha = 0.12f) else Colors.example5ToolbarColor.copy(alpha = 0.8f),
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                text = item.title,
-                color = titleColor,
+                text = label,
+                color = Color.White,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
             )
             Text(
-                text = item.dueSummary,
+                text = count.toString(),
                 color = Colors.example5TextGreyLight,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
             )
-            item.recurrenceSummary?.let { recurrence ->
-                Text(
-                    text = recurrence,
-                    color = Colors.example5TextGreyLight,
-                    fontSize = 12.sp,
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedButton(
-                    onClick = onPrimaryAction,
-                    enabled = primaryActionEnabled,
-                ) {
-                    Text(primaryActionLabel)
-                }
-                if (secondaryActionLabel != null && onSecondaryAction != null) {
-                    OutlinedButton(onClick = onSecondaryAction) {
-                        Text(secondaryActionLabel)
-                    }
-                }
-            }
+            Icon(
+                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (expanded) "Collapse $label" else "Expand $label",
+                tint = Colors.example5TextGreyLight,
+            )
         }
     }
 }

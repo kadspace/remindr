@@ -60,31 +60,6 @@ class NotificationActionReceiver : BroadcastReceiver() {
                             MainActivity.logFromReceiver("Marked reminder as done: $itemId")
                         }
                     }
-                    "ACTION_SNOOZE" -> {
-                        if (item != null) {
-                            scheduler.cancel(item)
-                            val javaSnoozed = java.time.LocalDateTime.now().plusMinutes(10)
-                            val snoozedUntil = kotlinx.datetime.LocalDateTime(
-                                year = javaSnoozed.year,
-                                monthNumber = javaSnoozed.monthValue,
-                                dayOfMonth = javaSnoozed.dayOfMonth,
-                                hour = javaSnoozed.hour,
-                                minute = javaSnoozed.minute,
-                                second = javaSnoozed.second,
-                                nanosecond = javaSnoozed.nano,
-                            )
-
-                            val snoozedItem = item.copy(
-                                time = snoozedUntil,
-                                snoozedUntil = snoozedUntil,
-                                status = ItemStatus.PENDING,
-                                reminderOffsets = listOf(0L),
-                            )
-                            repository.update(snoozedItem)
-                            scheduler.schedule(snoozedItem)
-                            MainActivity.logFromReceiver("Snoozed reminder by 10 min: $itemId")
-                        }
-                    }
                     "ACTION_DELETE" -> {
                         MainActivity.logFromReceiver("Notification dismissed: $itemId")
                     }

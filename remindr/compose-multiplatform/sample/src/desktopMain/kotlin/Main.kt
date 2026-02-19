@@ -14,8 +14,6 @@ fun main() = application {
         MaterialTheme(RemindrTheme) {
             RemindrApp(
                 driverFactory = driverFactory,
-                onRequestNotificationTest = {},
-                onRequestRichNotificationTest = {},
             )
         }
     }

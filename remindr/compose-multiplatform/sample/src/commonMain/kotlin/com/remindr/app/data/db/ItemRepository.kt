@@ -91,7 +91,7 @@ class ItemRepository(database: RemindrDatabase) {
             item.recurrenceEndDate != null -> endModeUntilDate
             else -> endModeNever
         }
-        val isActive = if (item.status == ItemStatus.ARCHIVED) 0L else 1L
+        val isActive = if (item.status == ItemStatus.ARCHIVED || item.status == ItemStatus.DELETED) 0L else 1L
         val archivedAt = if (isActive == 0L) now.toString() else null
         val reminderOffsets = normalizeOffsets(item.reminderOffsets).joinToString(",")
 
@@ -119,6 +119,7 @@ class ItemRepository(database: RemindrDatabase) {
         val initialState = when (item.status) {
             ItemStatus.COMPLETED -> occurrenceCompleted
             ItemStatus.ARCHIVED -> occurrenceCancelled
+            ItemStatus.DELETED -> occurrenceDeleted
             else -> if (item.snoozedUntil != null) occurrenceSnoozed else occurrencePending
         }
 
@@ -146,7 +147,7 @@ class ItemRepository(database: RemindrDatabase) {
             item.recurrenceEndDate != null -> endModeUntilDate
             else -> item.recurrenceEndMode.ifBlank { current.endMode }
         }
-        val isActive = if (item.status == ItemStatus.ARCHIVED) 0L else 1L
+        val isActive = if (item.status == ItemStatus.ARCHIVED || item.status == ItemStatus.DELETED) 0L else 1L
         val archivedAt = if (isActive == 0L) now.toString() else null
         val byWeekday = if (recurrenceKind == recurrenceWeekly) {
             (dueAt.date.dayOfWeek.ordinal + 1).toLong()
@@ -178,6 +179,7 @@ class ItemRepository(database: RemindrDatabase) {
         )
 
         val newState = when {
+            item.status == ItemStatus.DELETED -> occurrenceDeleted
             isActive == 0L -> occurrenceCancelled
             item.status == ItemStatus.COMPLETED -> occurrenceCompleted
             item.snoozedUntil != null -> occurrenceSnoozed
@@ -220,21 +222,26 @@ class ItemRepository(database: RemindrDatabase) {
                 )
             }
 
-            else -> {
-                val hasDifferentOpenOccurrence = selectFirstOpenJoinedBySeriesIdQuery(current.seriesId)
-                    .executeAsOneOrNull()
-                    ?.occurrenceId
-                    ?.let { openId -> openId != id }
-                    ?: false
+            ItemStatus.DELETED -> {
+                seriesQueries.setActive(
+                    is_active = 0L,
+                    archived_at = now.toString(),
+                    updated_at = now.toString(),
+                    id = current.seriesId,
+                )
+                occurrenceQueries.markDeletedBySeriesId(
+                    updated_at = now.toString(),
+                    seriesId = current.seriesId,
+                )
+            }
 
-                val reopeningCompletedRecurringHistory =
+            else -> {
+                if (
                     status == ItemStatus.PENDING &&
                     current.state == occurrenceCompleted &&
-                    current.recurrenceKind != recurrenceNone &&
-                    hasDifferentOpenOccurrence
-
-                if (reopeningCompletedRecurringHistory) {
-                    // Keep past recurring instances immutable once the next occurrence exists.
+                    current.recurrenceKind != recurrenceNone
+                ) {
+                    undoCompletedRecurringOccurrence(current = current, now = now)
                     return
                 }
 
@@ -252,13 +259,42 @@ class ItemRepository(database: RemindrDatabase) {
         }
     }
 
+    private fun undoCompletedRecurringOccurrence(current: JoinedOccurrence, now: LocalDateTime) {
+        val openOccurrence = selectFirstOpenJoinedBySeriesIdQuery(current.seriesId).executeAsOneOrNull()
+        val generatedOpenOccurrenceId = openOccurrence
+            ?.occurrenceId
+            ?.takeIf { openId ->
+                openId != current.occurrenceId && openId > current.occurrenceId
+            }
+
+        if (generatedOpenOccurrenceId != null) {
+            occurrenceQueries.deleteById(generatedOpenOccurrenceId)
+            seriesQueries.setGeneratedCount(
+                generated_count = (current.generatedCount - 1L).coerceAtLeast(1L),
+                updated_at = now.toString(),
+                id = current.seriesId,
+            )
+        }
+
+        seriesQueries.setActive(
+            is_active = 1L,
+            archived_at = null,
+            updated_at = now.toString(),
+            id = current.seriesId,
+        )
+        occurrenceQueries.markPending(
+            updated_at = now.toString(),
+            id = current.occurrenceId,
+        )
+    }
+
     fun archiveById(id: Long) {
         updateStatus(id, ItemStatus.ARCHIVED)
     }
 
-    @Deprecated("Use archiveById to preserve reminder history.")
+    @Deprecated("Use updateStatus(..., ItemStatus.DELETED) for soft-delete semantics.")
     fun deleteById(id: Long) {
-        archiveById(id)
+        updateStatus(id, ItemStatus.DELETED)
     }
 
     fun getLastInsertedItemId(): Long? {
@@ -271,6 +307,20 @@ class ItemRepository(database: RemindrDatabase) {
 
     fun saveApiKey(key: String) {
         settingsQueries.upsert("gemini_api_key", key)
+    }
+
+    fun getSetting(key: String): String? {
+        return settingsQueries.get(key).executeAsOneOrNull()
+    }
+
+    fun saveSetting(key: String, value: String) {
+        settingsQueries.upsert(key, value)
+    }
+
+    fun clearAllData() {
+        occurrenceQueries.deleteAll()
+        seriesQueries.deleteAll()
+        settingsQueries.deleteAll()
     }
 
     fun wasMissedReminderReconciled(itemId: Long, scheduledTime: LocalDateTime): Boolean {
@@ -406,6 +456,7 @@ class ItemRepository(database: RemindrDatabase) {
     private fun joinedToItem(row: JoinedOccurrence): Item {
         val dueAt = LocalDateTime.parse(row.snoozedUntil ?: row.dueAt)
         val status = when {
+            row.state == occurrenceDeleted -> ItemStatus.DELETED
             row.seriesIsActive != 1L -> ItemStatus.ARCHIVED
             row.state == occurrenceCompleted -> ItemStatus.COMPLETED
             row.state == occurrenceCancelled -> ItemStatus.ARCHIVED
@@ -508,5 +559,6 @@ class ItemRepository(database: RemindrDatabase) {
         const val occurrenceSnoozed = "SNOOZED"
         const val occurrenceCompleted = "COMPLETED"
         const val occurrenceCancelled = "CANCELLED"
+        const val occurrenceDeleted = "DELETED"
     }
 }

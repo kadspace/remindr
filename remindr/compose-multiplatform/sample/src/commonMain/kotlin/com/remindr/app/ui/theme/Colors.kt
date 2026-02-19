@@ -108,6 +108,6 @@ object Colors {
 
     val noteColors = activePalette.noteColors
 
-    val reminderActiveRed = Color(0xFFB3261E)
-    val reminderDoneGray = Color(0xFF5A5A5A)
+    val reminderActiveRed = Color(0xFFFF6B6B)
+    val reminderDoneGray = Color(0xFF8B8F96)
 }

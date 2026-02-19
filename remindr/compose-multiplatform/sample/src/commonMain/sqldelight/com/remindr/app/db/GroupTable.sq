@@ -30,3 +30,6 @@ DELETE FROM GroupTable WHERE id = ?;
 
 selectLast:
 SELECT * FROM GroupTable ORDER BY id DESC LIMIT 1;
+
+deleteAll:
+DELETE FROM GroupTable;

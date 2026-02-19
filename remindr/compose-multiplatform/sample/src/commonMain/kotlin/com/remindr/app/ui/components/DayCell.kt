@@ -74,7 +74,7 @@ fun DayCell(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             items.take(maxLines).forEach { item ->
-                val isDoneOrArchived = item.status == ItemStatus.COMPLETED || item.status == ItemStatus.ARCHIVED
+                val isDoneOrArchived = item.status == ItemStatus.COMPLETED || item.status == ItemStatus.ARCHIVED || item.status == ItemStatus.DELETED
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

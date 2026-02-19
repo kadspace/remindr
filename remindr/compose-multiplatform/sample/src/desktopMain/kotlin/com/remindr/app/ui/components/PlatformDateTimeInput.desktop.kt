@@ -26,7 +26,7 @@ actual fun PlatformDateTimeInput(
             value = dueDate,
             onValueChange = onDueDateChange,
             modifier = Modifier.weight(1f),
-            label = { Text("Due Date (YYYY-MM-DD)") },
+            label = { Text("Due Date (MM/DD/YYYY)") },
             singleLine = true,
         )
         OutlinedTextField(

@@ -91,3 +91,6 @@ SET
     archived_at = ?,
     updated_at = ?
 WHERE id = ?;
+
+deleteAll:
+DELETE FROM ReminderSeries;

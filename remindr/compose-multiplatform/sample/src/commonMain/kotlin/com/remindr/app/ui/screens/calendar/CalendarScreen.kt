@@ -29,8 +29,8 @@ import com.remindr.app.data.model.Item
 import com.remindr.app.data.model.ItemStatus
 import com.remindr.app.ui.components.CalendarTitle
 import com.remindr.app.ui.components.DayCell
-import com.remindr.app.ui.components.ItemRow
 import com.remindr.app.ui.components.MonthHeader
+import com.remindr.app.ui.components.ReminderRow
 import com.remindr.app.ui.navigation.CalendarViewMode
 import com.remindr.app.ui.theme.Colors
 import kotlinx.coroutines.launch
@@ -54,9 +54,7 @@ fun CalendarScreen(
     onSelectionChange: (CalendarDay?) -> Unit,
     recentlyAddedDate: LocalDate?,
     onItemClick: (Item) -> Unit,
-    onItemArchive: (Item) -> Unit,
     onItemStatusChange: (Long, ItemStatus) -> Unit,
-    onItemSnooze: (Long, Int) -> Unit,
     onSettingsClick: () -> Unit,
     viewMode: CalendarViewMode,
     onViewModeToggle: () -> Unit,
@@ -76,9 +74,6 @@ fun CalendarScreen(
     )
 
     val visibleMonth = rememberFirstCompletelyVisibleMonth(state)
-    LaunchedEffect(visibleMonth) {
-        onSelectionChange(null)
-    }
 
     val itemsInSelectedDate = remember(items, selection) {
         derivedStateOf {
@@ -241,16 +236,11 @@ fun CalendarScreen(
                             }
                         } else {
                             items(items = itemsInSelectedDate.value) { item ->
-                                Box(
-                                    modifier = Modifier.clickable { onItemClick(item) },
-                                ) {
-                                    ItemRow(
-                                        item = item,
-                                        onArchive = { onItemArchive(item) },
-                                        onStatusChange = { status -> onItemStatusChange(item.id, status) },
-                                        onSnooze = { minutes -> onItemSnooze(item.id, minutes) },
-                                    )
-                                }
+                                ReminderRow(
+                                    item = item,
+                                    onStatusChange = { status -> onItemStatusChange(item.id, status) },
+                                    onEdit = { onItemClick(item) },
+                                )
                             }
                         }
                     }
@@ -282,6 +272,7 @@ private fun statusOrder(status: ItemStatus): Int {
 
         ItemStatus.COMPLETED -> 1
         ItemStatus.ARCHIVED -> 2
+        ItemStatus.DELETED -> 3
     }
 }
 

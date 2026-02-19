@@ -4,6 +4,7 @@ import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toUpperCase
 import com.kizitonwose.remindr.core.Week
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.Month
 import kotlinx.datetime.YearMonth
@@ -28,6 +29,26 @@ expect fun Month.getDisplayName(short: Boolean, locale: Locale): String
 expect fun DayOfWeek.getDisplayName(narrow: Boolean = false, locale: Locale): String
 
 private val enLocale = Locale("en-US")
+
+fun LocalDate.toUsDateString(): String {
+    val monthText = monthNumber.toString().padStart(2, '0')
+    val dayText = day.toString().padStart(2, '0')
+    return "$monthText/$dayText/$year"
+}
+
+fun parseUsOrIsoLocalDateOrNull(input: String): LocalDate? {
+    val trimmed = input.trim()
+    if (trimmed.isBlank()) return null
+
+    runCatching { LocalDate.parse(trimmed) }.getOrNull()?.let { return it }
+
+    val slashMatch = Regex("^(\\d{1,2})/(\\d{1,2})/(\\d{2}|\\d{4})$").find(trimmed) ?: return null
+    val month = slashMatch.groupValues[1].toIntOrNull() ?: return null
+    val day = slashMatch.groupValues[2].toIntOrNull() ?: return null
+    val rawYear = slashMatch.groupValues[3].toIntOrNull() ?: return null
+    val year = if (rawYear < 100) 2000 + rawYear else rawYear
+    return runCatching { LocalDate(year, month, day) }.getOrNull()
+}
 
 fun getWeekPageTitle(week: Week): String {
     val firstDate = week.days.first().date

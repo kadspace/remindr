@@ -224,3 +224,17 @@ SET
     updated_at = ?
 WHERE series_id = :seriesId
   AND state IN ('PENDING', 'SNOOZED');
+
+markDeletedBySeriesId:
+UPDATE ReminderOccurrence
+SET
+    state = 'DELETED',
+    updated_at = ?
+WHERE series_id = :seriesId;
+
+deleteById:
+DELETE FROM ReminderOccurrence
+WHERE id = ?;
+
+deleteAll:
+DELETE FROM ReminderOccurrence;

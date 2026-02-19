@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.remindr.app.util.formatTime24TextTo12
+import com.remindr.app.util.parseUsOrIsoLocalDateOrNull
 import kotlinx.datetime.LocalDate
 import java.util.Calendar
 import java.util.Locale
@@ -36,7 +37,7 @@ actual fun PlatformDateTimeInput(
     ) {
         OutlinedButton(
             onClick = {
-                val initialDate = runCatching { LocalDate.parse(dueDate) }.getOrNull()
+                val initialDate = parseUsOrIsoLocalDateOrNull(dueDate)
                     ?: run {
                         val now = Calendar.getInstance()
                         LocalDate(
@@ -51,10 +52,10 @@ actual fun PlatformDateTimeInput(
                         onDueDateChange(
                             String.format(
                                 Locale.US,
-                                "%04d-%02d-%02d",
-                                year,
+                                "%02d/%02d/%04d",
                                 monthOfYear + 1,
                                 dayOfMonth,
+                                year,
                             )
                         )
                     },

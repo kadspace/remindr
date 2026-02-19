@@ -32,10 +32,6 @@ fun SettingsScreen(
     apiKey: String,
     versionLabel: String,
     onApiKeyChange: (String) -> Unit,
-    onTestNotification: () -> Unit,
-    onRichTestNotification: () -> Unit,
-    onRequestExactAlarmPermission: () -> Unit,
-    logs: String,
     onBack: () -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
@@ -94,8 +90,7 @@ fun SettingsScreen(
                         value = apiKey,
                         onValueChange = onApiKeyChange,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Groq API Key") },
-                        placeholder = { Text("gsk_...") },
+                        label = { Text("Groq API key") },
                         singleLine = true,
                         visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -125,21 +120,12 @@ fun SettingsScreen(
                         ),
                     )
 
-                    Text(
-                        text = if (hasApiKey) {
-                            val suffix = apiKey.takeLast(4)
-                            "Saved key detected (${apiKey.length} chars, ends with $suffix)."
-                        } else {
-                            "No key saved."
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Colors.example5TextGreyLight,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
-
                     if (hasApiKey) {
                         TextButton(
-                            onClick = { onApiKeyChange("") },
+                            onClick = {
+                                showPassword = false
+                                onApiKeyChange("")
+                            },
                             modifier = Modifier.padding(top = 2.dp),
                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
                         ) {
@@ -158,39 +144,6 @@ fun SettingsScreen(
                             .clickable { uriHandler.openUri("https://console.groq.com/keys") }
                             .padding(vertical = 4.dp),
                     )
-                }
-            }
-
-            // Notifications
-            Text(
-                text = "NOTIFICATIONS",
-                style = MaterialTheme.typography.labelSmall,
-                color = Colors.example5TextGreyLight,
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-            )
-
-            Surface(
-                color = Colors.example5ItemViewBgColor,
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Text(
-                        text = "Enable exact alarms for reliable reminder delivery.",
-                        color = Colors.example5TextGreyLight,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-
-                    OutlinedButton(
-                        onClick = onRequestExactAlarmPermission,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                        shape = RoundedCornerShape(10.dp),
-                    ) {
-                        Text("Enable Exact Alarms", fontSize = 13.sp)
-                    }
                 }
             }
 

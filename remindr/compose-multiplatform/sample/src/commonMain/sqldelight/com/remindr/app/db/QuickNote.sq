@@ -12,6 +12,10 @@ SELECT * FROM QuickNote
 WHERE is_archived = 0
 ORDER BY updated_at DESC, id DESC;
 
+selectAll:
+SELECT * FROM QuickNote
+ORDER BY updated_at DESC, id DESC;
+
 selectById:
 SELECT * FROM QuickNote
 WHERE id = ?;
@@ -51,3 +55,5 @@ SET
     updated_at = ?
 WHERE id = ?;
 
+deleteAll:
+DELETE FROM QuickNote;

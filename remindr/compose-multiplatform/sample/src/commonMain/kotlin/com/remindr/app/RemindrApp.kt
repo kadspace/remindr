@@ -1,7 +1,6 @@
 package com.remindr.app
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
@@ -11,10 +10,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,21 +41,23 @@ import com.remindr.app.ui.navigation.BottomTab
 import com.remindr.app.ui.navigation.CalendarViewMode
 import com.remindr.app.ui.screens.calendar.CalendarScreen
 import com.remindr.app.ui.screens.home.HomeScreen
+import com.remindr.app.ui.screens.notes.NoteEditorScreen
 import com.remindr.app.ui.screens.notes.NotesScreen
 import com.remindr.app.ui.screens.settings.SettingsScreen
 import com.remindr.app.ui.theme.Colors
-import com.remindr.app.util.getDateTimeAfterMinutes
 import com.remindr.app.util.getFormattedTime
 import com.remindr.app.util.getToday
 import com.remindr.app.util.getCurrentDateTime
 import com.remindr.app.util.formatTime12
+import com.remindr.app.util.parseUsOrIsoLocalDateOrNull
+import com.remindr.app.util.toUsDateString
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 
 private val pageBackgroundColor: Color = Colors.example5PageBgColor
-
-private enum class QuickInputMode { REMINDER, NOTE }
+private const val mockSeedKey = "__mock_seed_version__"
+private const val mockSeedVersion = "2026-02-19"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,9 +65,6 @@ fun RemindrApp(
     driverFactory: DatabaseDriverFactory,
     requestMagicAdd: Boolean = false,
     scheduler: ReminderScheduler? = null,
-    onRequestNotificationTest: ((String) -> Unit) -> Unit,
-    onRequestRichNotificationTest: ((String) -> Unit) -> Unit,
-    onRequestExactAlarmPermission: ((String) -> Unit) -> Unit = { _ -> },
     appVersionLabel: String = "dev",
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -83,7 +81,7 @@ fun RemindrApp(
 
     // Data
     val items = repository.getAllItems().collectAsState(initial = emptyList()).value
-    val notes = quickNoteRepository.getActiveNotes().collectAsState(initial = emptyList()).value
+    val notes = quickNoteRepository.getAllNotes().collectAsState(initial = emptyList()).value
 
     // Calendar state
     var selection by remember { mutableStateOf<CalendarDay?>(null) }
@@ -96,6 +94,9 @@ fun RemindrApp(
     var editDueTimeText by remember { mutableStateOf("") }
     var editEndMode by remember { mutableStateOf("NEVER") }
     var editEndDateText by remember { mutableStateOf("") }
+    var editingNoteId by remember { mutableStateOf<Long?>(null) }
+    var noteEditorText by remember { mutableStateOf("") }
+    var noteEditorInitialText by remember { mutableStateOf("") }
 
     LaunchedEffect(recentlyAddedDate) {
         if (recentlyAddedDate != null) {
@@ -107,34 +108,27 @@ fun RemindrApp(
     // Settings
     var apiKey by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
-        repository.getApiKey()?.let { apiKey = it }
+        val seeded = repository.getSetting(mockSeedKey)
+        if (seeded != mockSeedVersion) {
+            repository.clearAllData()
+            database.groupTableQueries.deleteAll()
+            quickNoteRepository.clearAll()
+            seedMockData(repository, quickNoteRepository)
+            repository.saveSetting(mockSeedKey, mockSeedVersion)
+        }
+        apiKey = repository.getApiKey().orEmpty()
     }
 
     // Input bar state
     var isSaving by remember { mutableStateOf(false) }
     var isComposerOpen by remember { mutableStateOf(false) }
     var composerFocusTick by remember { mutableStateOf(0) }
-    var quickInputMode by remember { mutableStateOf(QuickInputMode.REMINDER) }
 
     // Debug logs
     var debugLogs by remember { mutableStateOf("Logs will appear here...\n") }
 
     // AI Service
     val aiService = remember { AiService() }
-
-    // BackHandler
-    com.remindr.app.ui.components.BackHandler(
-        enabled = currentScreen != AppScreen.Home || isComposerOpen,
-    ) {
-        when {
-            isComposerOpen -> isComposerOpen = false
-            currentScreen == AppScreen.Settings -> currentScreen = AppScreen.Home
-            currentScreen == AppScreen.Notes -> {
-                currentScreen = if (currentTab == BottomTab.Calendar) AppScreen.Calendar else AppScreen.Home
-            }
-            selection != null -> selection = null
-        }
-    }
 
     suspend fun createReminderFromInput(inputText: String): Long? {
         debugLogs += "${getFormattedTime()}: Requesting AI for: '$inputText'\n"
@@ -219,21 +213,87 @@ fun RemindrApp(
         debugLogs += "${getFormattedTime()}: Saved quick note $noteId\n"
     }
 
-    fun promoteNoteToReminder(note: QuickNote) {
-        coroutineScope.launch {
-            isSaving = true
-            try {
-                val newReminderId = createReminderFromInput(note.content)
-                if (newReminderId != null) {
-                    quickNoteRepository.markPromoted(note.id, newReminderId)
+    fun openNewNoteEditor() {
+        isComposerOpen = false
+        currentTab = BottomTab.Notes
+        currentScreen = AppScreen.NoteEditor
+        editingNoteId = null
+        noteEditorText = ""
+        noteEditorInitialText = ""
+    }
+
+    fun openExistingNoteEditor(note: QuickNote) {
+        isComposerOpen = false
+        currentTab = BottomTab.Notes
+        currentScreen = AppScreen.NoteEditor
+        editingNoteId = note.id
+        noteEditorText = note.content
+        noteEditorInitialText = note.content
+    }
+
+    fun persistNoteEditorIfNeeded() {
+        val normalized = noteEditorText.trim()
+        val initial = noteEditorInitialText.trim()
+        val targetId = editingNoteId
+
+        if (targetId == null) {
+            if (normalized.isBlank()) return
+            handleQuickNoteInput(normalized)
+            return
+        }
+
+        if (normalized.isBlank() || normalized == initial) return
+        quickNoteRepository.updateContent(targetId, normalized)
+        debugLogs += "${getFormattedTime()}: Updated quick note $targetId\n"
+    }
+
+    fun closeNoteEditor(saveChanges: Boolean) {
+        if (saveChanges) {
+            persistNoteEditorIfNeeded()
+        }
+        editingNoteId = null
+        noteEditorText = ""
+        noteEditorInitialText = ""
+        currentTab = BottomTab.Notes
+        currentScreen = AppScreen.Notes
+    }
+
+    fun screenForTab(tab: BottomTab): AppScreen {
+        return when (tab) {
+            BottomTab.Home -> AppScreen.Home
+            BottomTab.Calendar -> AppScreen.Calendar
+            BottomTab.Notes -> AppScreen.Notes
+        }
+    }
+
+    fun openTab(tab: BottomTab) {
+        isComposerOpen = false
+        currentTab = tab
+        currentScreen = screenForTab(tab)
+        if (tab == BottomTab.Calendar) {
+            selection = CalendarDay(getToday(), DayPosition.MonthDate)
+        }
+    }
+
+    // BackHandler
+    com.remindr.app.ui.components.BackHandler(
+        enabled = currentScreen != AppScreen.Home || isComposerOpen,
+    ) {
+        when {
+            isComposerOpen -> isComposerOpen = false
+            currentScreen == AppScreen.NoteEditor -> closeNoteEditor(saveChanges = true)
+            currentScreen == AppScreen.Settings -> openTab(currentTab)
+            currentScreen == AppScreen.Notes -> {
+                currentScreen = when (currentTab) {
+                    BottomTab.Calendar -> AppScreen.Calendar
+                    BottomTab.Notes -> AppScreen.Home
+                    BottomTab.Home -> AppScreen.Home
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                debugLogs += "${getFormattedTime()}: Promote Error: ${e.message}\n"
-            } finally {
-                isSaving = false
+                if (currentTab == BottomTab.Notes) {
+                    currentTab = BottomTab.Home
+                }
             }
+            selection != null -> selection = null
         }
     }
 
@@ -256,33 +316,21 @@ fun RemindrApp(
                 scheduler?.cancel(currentItem)
             }
 
+            ItemStatus.DELETED -> {
+                scheduler?.cancel(currentItem)
+            }
+
             else -> {
                 val updatedItem = repository.getItemById(itemId) ?: return
                 scheduler?.cancel(currentItem)
-                if (updatedItem.status != ItemStatus.COMPLETED && updatedItem.status != ItemStatus.ARCHIVED) {
+                if (updatedItem.status != ItemStatus.COMPLETED &&
+                    updatedItem.status != ItemStatus.ARCHIVED &&
+                    updatedItem.status != ItemStatus.DELETED
+                ) {
                     scheduler?.schedule(updatedItem)
                 }
             }
         }
-    }
-
-    fun handleSnooze(itemId: Long, minutes: Int) {
-        val item = repository.getItemById(itemId) ?: return
-        if (item.status == ItemStatus.COMPLETED || item.status == ItemStatus.ARCHIVED) return
-
-        scheduler?.cancel(item)
-
-        val snoozeMinutes = minutes.coerceAtLeast(1)
-        val snoozedUntil = getDateTimeAfterMinutes(snoozeMinutes)
-
-        val snoozedItem = item.copy(
-            time = snoozedUntil,
-            snoozedUntil = snoozedUntil,
-            status = ItemStatus.PENDING,
-            reminderOffsets = listOf(0L),
-        )
-        repository.update(snoozedItem)
-        scheduler?.schedule(snoozedItem)
     }
 
     fun openEditor(item: Item) {
@@ -290,7 +338,7 @@ fun RemindrApp(
         editTitle = item.title
         editRecurrenceType = item.recurrenceType
         editIntervalText = item.recurrenceInterval.toString()
-        editDueDateText = item.time?.date?.toString().orEmpty()
+        editDueDateText = item.time?.date?.toUsDateString().orEmpty()
         editDueTimeText = item.time?.let { "${it.hour.toString().padStart(2, '0')}:${it.minute.toString().padStart(2, '0')}" }.orEmpty()
         editEndMode = if (item.recurrenceType == null) {
             "NEVER"
@@ -299,7 +347,7 @@ fun RemindrApp(
         } else {
             "NEVER"
         }
-        editEndDateText = item.recurrenceEndDate?.date?.toString().orEmpty()
+        editEndDateText = item.recurrenceEndDate?.date?.toUsDateString().orEmpty()
     }
 
     fun closeEditor() {
@@ -339,7 +387,10 @@ fun RemindrApp(
 
         repository.update(updatedItem)
 
-        if (updatedItem.status != ItemStatus.COMPLETED && updatedItem.status != ItemStatus.ARCHIVED) {
+        if (updatedItem.status != ItemStatus.COMPLETED &&
+            updatedItem.status != ItemStatus.ARCHIVED &&
+            updatedItem.status != ItemStatus.DELETED
+        ) {
             scheduler?.cancel(currentItem)
             scheduler?.schedule(updatedItem)
         }
@@ -347,16 +398,21 @@ fun RemindrApp(
         closeEditor()
     }
 
-    // Splash state
-    var showSplash by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(1200)
-        showSplash = false
-    }
+    val showLoadingOverlay = isSaving
 
     // Main Layout
     Box(modifier = Modifier.fillMaxSize()) {
     when (currentScreen) {
+        AppScreen.NoteEditor -> {
+            NoteEditorScreen(
+                content = noteEditorText,
+                isNewNote = editingNoteId == null,
+                onContentChange = { noteEditorText = it },
+                onDone = { closeNoteEditor(saveChanges = true) },
+                onBack = { closeNoteEditor(saveChanges = true) },
+            )
+        }
+
         AppScreen.Settings -> {
             SettingsScreen(
                 apiKey = apiKey,
@@ -365,23 +421,7 @@ fun RemindrApp(
                     apiKey = newKey
                     repository.saveApiKey(newKey)
                 },
-                onTestNotification = {
-                    onRequestNotificationTest { message ->
-                        debugLogs += "${getFormattedTime()}: $message\n"
-                    }
-                },
-                onRichTestNotification = {
-                    onRequestRichNotificationTest { message ->
-                        debugLogs += "${getFormattedTime()}: $message\n"
-                    }
-                },
-                onRequestExactAlarmPermission = {
-                    onRequestExactAlarmPermission { message ->
-                        debugLogs += "${getFormattedTime()}: $message\n"
-                    }
-                },
-                logs = debugLogs,
-                onBack = { currentScreen = AppScreen.Home },
+                onBack = { openTab(currentTab) },
             )
         }
 
@@ -397,17 +437,14 @@ fun RemindrApp(
                         ) {
                             InputBar(
                                 placeholder = when (currentTab) {
-                                    BottomTab.Home -> if (quickInputMode == QuickInputMode.NOTE) "New Note..." else "New Reminder..."
-                                    BottomTab.Calendar -> if (quickInputMode == QuickInputMode.NOTE) "New Note..." else if (selection != null) "Add to ${selection?.date}..." else "New Reminder..."
+                                    BottomTab.Home -> "New Reminder..."
+                                    BottomTab.Calendar -> if (selection != null) "Add to ${selection?.date?.toUsDateString()}..." else "New Reminder..."
+                                    BottomTab.Notes -> "New Reminder..."
                                 },
-                                isSaving = isSaving && quickInputMode == QuickInputMode.REMINDER,
+                                isSaving = isSaving,
                                 autoFocusTick = composerFocusTick,
                                 onSend = { text ->
-                                    if (quickInputMode == QuickInputMode.NOTE) {
-                                        handleQuickNoteInput(text)
-                                    } else {
-                                        handleAiInput(text)
-                                    }
+                                    handleAiInput(text)
                                     isComposerOpen = false
                                 },
                             )
@@ -415,21 +452,14 @@ fun RemindrApp(
                         BottomActionRow(
                             selectedTab = currentTab,
                             onSelectTab = { tab ->
-                                isComposerOpen = false
-                                quickInputMode = QuickInputMode.REMINDER
-                                currentTab = tab
-                                currentScreen = if (tab == BottomTab.Home) AppScreen.Home else AppScreen.Calendar
+                                openTab(tab)
                             },
                             onQuickReminderClick = {
                                 isComposerOpen = true
-                                quickInputMode = QuickInputMode.REMINDER
                                 composerFocusTick += 1
                             },
                             onQuickNoteClick = {
-                                currentScreen = AppScreen.Notes
-                                isComposerOpen = true
-                                quickInputMode = QuickInputMode.NOTE
-                                composerFocusTick += 1
+                                openNewNoteEditor()
                             },
                             modifier = Modifier.navigationBarsPadding(),
                         )
@@ -442,7 +472,6 @@ fun RemindrApp(
                             HomeScreen(
                                 items = items,
                                 onStatusChange = { id, status -> handleStatusChange(id, status) },
-                                onSnooze = { id, minutes -> handleSnooze(id, minutes) },
                                 onItemClick = { id ->
                                     repository.getItemById(id)?.let { item -> openEditor(item) }
                                 },
@@ -455,12 +484,7 @@ fun RemindrApp(
                                 onSelectionChange = { selection = it },
                                 recentlyAddedDate = recentlyAddedDate,
                                 onItemClick = { item -> openEditor(item) },
-                                onItemArchive = { item ->
-                                    repository.archiveById(item.id)
-                                    scheduler?.cancel(item)
-                                },
                                 onItemStatusChange = { id, status -> handleStatusChange(id, status) },
-                                onItemSnooze = { id, minutes -> handleSnooze(id, minutes) },
                                 onSettingsClick = { currentScreen = AppScreen.Settings },
                                 viewMode = viewMode,
                                 onViewModeToggle = {
@@ -471,11 +495,13 @@ fun RemindrApp(
                         AppScreen.Notes -> {
                             NotesScreen(
                                 notes = notes,
-                                onUpdateNote = { id, content -> quickNoteRepository.updateContent(id, content) },
+                                onEditNote = { note -> openExistingNoteEditor(note) },
                                 onArchiveNote = { id -> quickNoteRepository.archive(id) },
-                                onPromoteToReminder = { note -> promoteNoteToReminder(note) },
+                                onDeleteNote = { id -> quickNoteRepository.delete(id) },
+                                onRestoreNote = { id -> quickNoteRepository.restore(id) },
                             )
                         }
+                        AppScreen.NoteEditor -> Unit
                         AppScreen.Settings -> Unit
                     }
                 }
@@ -567,18 +593,28 @@ fun RemindrApp(
         }
     }
 
-    // Splash overlay
     AnimatedVisibility(
-        visible = showSplash,
-        exit = fadeOut(animationSpec = tween(400)),
+        visible = showLoadingOverlay,
+        enter = fadeIn(),
+        exit = fadeOut(),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0E0E0E)),
+                .background(Color(0xFF0E0E0E).copy(alpha = 0.96f)),
             contentAlignment = Alignment.Center,
         ) {
-            RemindrWordmark(iconSize = 48.dp, fontSize = 28.sp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                RemindrWordmark(iconSize = 44.dp, fontSize = 24.sp)
+                Text(
+                    text = "Loading...",
+                    color = Colors.example5TextGreyLight,
+                    fontSize = 14.sp,
+                )
+            }
         }
     }
     } // end Box
@@ -643,8 +679,8 @@ private fun BottomRadioNav(
         ) {
             BottomRadioNavButton(
                 selected = selectedTab == BottomTab.Home,
-                icon = Icons.Default.Home,
-                contentDescription = "Home",
+                icon = Icons.Default.TaskAlt,
+                contentDescription = "Reminders",
                 onClick = { onSelect(BottomTab.Home) },
             )
             BottomRadioNavButton(
@@ -652,6 +688,12 @@ private fun BottomRadioNav(
                 icon = Icons.Default.DateRange,
                 contentDescription = "Calendar",
                 onClick = { onSelect(BottomTab.Calendar) },
+            )
+            BottomRadioNavButton(
+                selected = selectedTab == BottomTab.Notes,
+                icon = Icons.Default.Description,
+                contentDescription = "Notes",
+                onClick = { onSelect(BottomTab.Notes) },
             )
         }
     }
@@ -967,6 +1009,151 @@ private fun String.hasRecurrenceCue(): Boolean {
 
 private val supportedRecurrenceTypes = setOf("DAILY", "WEEKLY", "MONTHLY", "YEARLY")
 
+private fun seedMockData(
+    repository: ItemRepository,
+    quickNoteRepository: QuickNoteRepository,
+) {
+    val now = getCurrentDateTime()
+    val today = getToday()
+
+    fun mockReminder(
+        title: String,
+        description: String,
+        daysFromToday: Int,
+        hour: Int,
+        minute: Int,
+        status: ItemStatus = ItemStatus.PENDING,
+        recurrenceType: String? = null,
+        recurrenceInterval: Int = 1,
+        recurrenceEndDate: LocalDateTime? = null,
+    ): Item {
+        val dueAt = today.plus(DatePeriod(days = daysFromToday)).atTime(hour, minute)
+        val endMode = when {
+            recurrenceType == null -> "NEVER"
+            recurrenceEndDate != null -> "UNTIL_DATE"
+            else -> "NEVER"
+        }
+        return Item(
+            title = title,
+            description = description,
+            time = dueAt,
+            color = Colors.example5TextGrey,
+            status = status,
+            recurrenceType = recurrenceType,
+            recurrenceInterval = recurrenceInterval,
+            recurrenceEndMode = endMode,
+            recurrenceEndDate = recurrenceEndDate,
+            reminderOffsets = listOf(1440L, 60L, 0L),
+            createdAt = now,
+        )
+    }
+
+    val reminders = listOf(
+        mockReminder(
+            title = "Discover Card Payment",
+            description = "Pay statement balance in full.",
+            daysFromToday = 11,
+            hour = 8,
+            minute = 0,
+            recurrenceType = "MONTHLY",
+        ),
+        mockReminder(
+            title = "Rent",
+            description = "Transfer rent to landlord.",
+            daysFromToday = 9,
+            hour = 9,
+            minute = 0,
+            recurrenceType = "MONTHLY",
+        ),
+        mockReminder(
+            title = "Water Bill",
+            description = "City utilities autopay check.",
+            daysFromToday = 18,
+            hour = 18,
+            minute = 30,
+            recurrenceType = "MONTHLY",
+        ),
+        mockReminder(
+            title = "Team Standup",
+            description = "Weekly project check-in.",
+            daysFromToday = 1,
+            hour = 10,
+            minute = 0,
+            recurrenceType = "WEEKLY",
+        ),
+        mockReminder(
+            title = "Daily Medication",
+            description = "Take evening meds.",
+            daysFromToday = 0,
+            hour = 20,
+            minute = 30,
+            recurrenceType = "DAILY",
+        ),
+        mockReminder(
+            title = "Car Insurance Renewal",
+            description = "Review premium and renew if needed.",
+            daysFromToday = 45,
+            hour = 12,
+            minute = 0,
+            recurrenceType = "YEARLY",
+        ),
+        mockReminder(
+            title = "Quarterly Tax Estimate",
+            description = "Submit quarterly payment.",
+            daysFromToday = 26,
+            hour = 15,
+            minute = 0,
+            recurrenceType = "MONTHLY",
+            recurrenceInterval = 3,
+        ),
+        mockReminder(
+            title = "Submit Expense Report",
+            description = "Last week's receipts.",
+            daysFromToday = -2,
+            hour = 14,
+            minute = 15,
+            status = ItemStatus.COMPLETED,
+        ),
+        mockReminder(
+            title = "Review 401k Allocation",
+            description = "Portfolio rebalance note.",
+            daysFromToday = -7,
+            hour = 11,
+            minute = 0,
+            status = ItemStatus.ARCHIVED,
+        ),
+        mockReminder(
+            title = "Cancel Old Trial Services",
+            description = "Old subscriptions no longer needed.",
+            daysFromToday = -20,
+            hour = 16,
+            minute = 45,
+            status = ItemStatus.DELETED,
+        ),
+    )
+
+    reminders.forEach(repository::insert)
+
+    quickNoteRepository.insert(
+        "- Grocery run tomorrow\n- Eggs\n- Avocados\n- Coffee beans",
+    )
+    quickNoteRepository.insert(
+        "- Ideas for Q2\n  - Better onboarding flow\n  - Simplify settings copy",
+    )
+    val archivedId = quickNoteRepository.insert(
+        "Archived draft: vacation packing checklist",
+    )
+    val deletedId = quickNoteRepository.insert(
+        "Deleted draft: random scratch notes",
+    )
+    quickNoteRepository.insert(
+        "- Meeting notes\n  - Ship Android polish\n  - Date format cleanup",
+    )
+
+    if (archivedId != null) quickNoteRepository.archive(archivedId)
+    if (deletedId != null) quickNoteRepository.delete(deletedId)
+}
+
 private fun occurrencePreviewLine(
     dueAt: LocalDateTime,
     recurrenceType: String?,
@@ -975,7 +1162,7 @@ private fun occurrencePreviewLine(
 ): String {
     val timeText = formatTime12(dueAt.time)
     if (recurrenceType == null) {
-        return "Will occur on ${dueAt.date} at $timeText."
+        return "Will occur on ${dueAt.date.toUsDateString()} at $timeText."
     }
 
     val every = recurrenceInterval.coerceAtLeast(1)
@@ -987,14 +1174,12 @@ private fun occurrencePreviewLine(
         else -> "cycle"
     }
     val cadence = if (every == 1) "every $unit" else "every $every ${unit}s"
-    val until = recurrenceEndDate?.let { " until ${it.date}" } ?: ""
-    return "Will occur on ${dueAt.date} at $timeText, then $cadence$until."
+    val until = recurrenceEndDate?.let { " until ${it.date.toUsDateString()}" } ?: ""
+    return "Will occur on ${dueAt.date.toUsDateString()} at $timeText, then $cadence$until."
 }
 
 private fun parseLocalDateOrNull(input: String): LocalDate? {
-    val trimmed = input.trim()
-    if (trimmed.isBlank()) return null
-    return runCatching { LocalDate.parse(trimmed) }.getOrNull()
+    return parseUsOrIsoLocalDateOrNull(input)
 }
 
 private fun parseLocalTimeOrNull(input: String): LocalTime? {

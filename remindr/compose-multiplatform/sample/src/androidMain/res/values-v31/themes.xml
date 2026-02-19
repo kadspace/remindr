@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Remindr.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0E0E0E</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_stagger_wordmark</item>
+        <item name="postSplashScreenTheme">@style/Theme.Remindr</item>
+    </style>
+</resources>

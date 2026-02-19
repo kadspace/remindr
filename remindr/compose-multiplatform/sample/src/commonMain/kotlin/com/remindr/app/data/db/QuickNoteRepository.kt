@@ -3,6 +3,7 @@ package com.remindr.app.data.db
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.remindr.app.data.model.QuickNote
+import com.remindr.app.data.model.QuickNoteState
 import com.remindr.app.db.RemindrDatabase
 import com.remindr.app.util.getCurrentDateTime
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +13,25 @@ import kotlinx.datetime.LocalDateTime
 
 class QuickNoteRepository(database: RemindrDatabase) {
     private val queries = database.quickNoteQueries
+
+    fun getAllNotes(): Flow<List<QuickNote>> {
+        return queries
+            .selectAll()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { rows ->
+                rows.map { row ->
+                    QuickNote(
+                        id = row.id,
+                        content = row.content,
+                        state = mapState(row.is_archived),
+                        promotedOccurrenceId = row.promoted_occurrence_id,
+                        createdAt = LocalDateTime.parse(row.created_at),
+                        updatedAt = LocalDateTime.parse(row.updated_at),
+                    )
+                }
+            }
+    }
 
     fun getActiveNotes(): Flow<List<QuickNote>> {
         return queries
@@ -23,7 +43,7 @@ class QuickNoteRepository(database: RemindrDatabase) {
                     QuickNote(
                         id = row.id,
                         content = row.content,
-                        isArchived = row.is_archived == 1L,
+                        state = mapState(row.is_archived),
                         promotedOccurrenceId = row.promoted_occurrence_id,
                         createdAt = LocalDateTime.parse(row.created_at),
                         updatedAt = LocalDateTime.parse(row.updated_at),
@@ -37,7 +57,7 @@ class QuickNoteRepository(database: RemindrDatabase) {
         return QuickNote(
             id = row.id,
             content = row.content,
-            isArchived = row.is_archived == 1L,
+            state = mapState(row.is_archived),
             promotedOccurrenceId = row.promoted_occurrence_id,
             createdAt = LocalDateTime.parse(row.created_at),
             updatedAt = LocalDateTime.parse(row.updated_at),
@@ -76,6 +96,22 @@ class QuickNoteRepository(database: RemindrDatabase) {
         )
     }
 
+    fun delete(id: Long) {
+        queries.setArchived(
+            is_archived = 2L,
+            updated_at = getCurrentDateTime().toString(),
+            id = id,
+        )
+    }
+
+    fun restore(id: Long) {
+        queries.setArchived(
+            is_archived = 0L,
+            updated_at = getCurrentDateTime().toString(),
+            id = id,
+        )
+    }
+
     fun markPromoted(noteId: Long, occurrenceId: Long) {
         queries.setPromotedOccurrence(
             promoted_occurrence_id = occurrenceId,
@@ -83,5 +119,16 @@ class QuickNoteRepository(database: RemindrDatabase) {
             id = noteId,
         )
     }
-}
 
+    fun clearAll() {
+        queries.deleteAll()
+    }
+
+    private fun mapState(rawState: Long): QuickNoteState {
+        return when (rawState) {
+            1L -> QuickNoteState.ARCHIVED
+            2L -> QuickNoteState.DELETED
+            else -> QuickNoteState.ACTIVE
+        }
+    }
+}

@@ -16,7 +16,7 @@ actual fun PlatformDateInput(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
-        label = { Text("$label (YYYY-MM-DD)") },
+        label = { Text("$label (MM/DD/YYYY)") },
         singleLine = true,
     )
 }

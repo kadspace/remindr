@@ -8,3 +8,6 @@ INSERT OR REPLACE INTO KeyValueStore(paramKey, paramValue) VALUES (?, ?);
 
 get:
 SELECT paramValue FROM KeyValueStore WHERE paramKey = ?;
+
+deleteAll:
+DELETE FROM KeyValueStore;

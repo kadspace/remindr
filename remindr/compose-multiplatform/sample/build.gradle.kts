@@ -90,6 +90,7 @@ kotlin {
             implementation(libs.compose.activity)
             implementation(libs.sqldelight.android.driver)
             implementation(libs.ktor.client.android)
+            implementation("androidx.core:core-splashscreen:1.0.1")
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -143,8 +144,8 @@ android {
         applicationId = "com.remindr.app"
         minSdk = Android.minSdk
         targetSdk = Android.targetSdk
-        versionCode = 26
-        versionName = "2.1.0"
+        versionCode = 30
+        versionName = "2.1.4"
         multiDexEnabled = true
     }
     packaging {

@@ -29,7 +29,7 @@ object RecurrenceEngine {
 
     fun shouldNag(item: Item, now: LocalDateTime): Boolean {
         if (!item.nagEnabled) return false
-        if (item.status == ItemStatus.COMPLETED) return false
+        if (item.status == ItemStatus.COMPLETED || item.status == ItemStatus.ARCHIVED || item.status == ItemStatus.DELETED) return false
         if (item.time == null) return false
         return now > item.time
     }

@@ -96,16 +96,6 @@ class ReminderReceiver : BroadcastReceiver() {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val snoozePendingIntent = PendingIntent.getBroadcast(
-            context,
-            "${item.id}-snooze".hashCode(),
-            Intent(context, NotificationActionReceiver::class.java).apply {
-                action = "ACTION_SNOOZE"
-                putExtra("ITEM_ID", item.id)
-                putExtra("NOTIFICATION_ID", item.id.toInt())
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
         val deletePendingIntent = PendingIntent.getBroadcast(
             context,
             "${item.id}-delete".hashCode(),
@@ -152,7 +142,6 @@ class ReminderReceiver : BroadcastReceiver() {
             .setColor(color)
             .setColorized(true)
             .setLights(color, 500, 2000)
-            .addAction(android.R.drawable.ic_media_pause, "Snooze 10m", snoozePendingIntent)
             .addAction(android.R.drawable.checkbox_on_background, "Done", donePendingIntent)
 
         notificationManager.notify(item.id.toInt(), notificationBuilder.build())
